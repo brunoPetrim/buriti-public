@@ -1,0 +1,2 @@
+// Recursos do executável no Windows: o ícone do arquivo .exe (aparece no Explorer, barra de tarefas, atalhos).
+1 ICON "web/images/buriti_favicon.ico"

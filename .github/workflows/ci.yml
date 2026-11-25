@@ -1,0 +1,136 @@
+# Buriti continuous integration. See docs/CI.md (costs, how to run Windows and macOS by hand, what it does NOT cover).
+#
+# - On every push to main and on pull requests: Linux x86-64 only.
+# - By hand (Actions > CI > Run workflow) you choose where it runs: tick or untick "linux", "windows" and "macos".
+#   Untick Linux and tick only macOS (or only Windows) to run just that one.
+# - Windows minutes cost about 1.7x the Linux ones and macOS about 10x, and the repository is private (US$ 12 included
+#   per month on the Free plan).
+#
+# Security: minimal permissions (read only), only official GitHub actions pinned by commit hash (the tag stays in the
+# comment), Rust through the `rustup` that already ships on the machine, and NOTHING from third parties is executed:
+# the CI never downloads or runs llama-server.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      linux:
+        description: "Run on Linux x86-64 (ticked by default; untick it to run only Windows and/or macOS)"
+        type: boolean
+        default: true
+      windows:
+        description: "Run on Windows x86-64 (about 1.7x the Linux minutes)"
+        type: boolean
+        default: false
+      macos:
+        description: "Run on macOS (Apple Silicon and Intel; about 10x the Linux minutes)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  test:
+    name: ${{ matrix.name }}
+    if: github.event_name != 'workflow_dispatch' || inputs.linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Linux x86-64", os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Cargo registry cache (dependency sources only, not target, to stay under the 10 GB limit)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - name: Stable Rust (rustup already ships on the image)
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustc --version && cargo --version
+      - name: Tests (the project's dev profile, which is already opt-level 3)
+        shell: bash
+        run: cargo test --locked
+
+  windows:
+    name: ${{ matrix.name }}
+    if: github.event_name == 'workflow_dispatch' && inputs.windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Windows x86-64", os: windows-latest }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Cargo registry cache (dependency sources only, not target, to stay under the 10 GB limit)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - name: Stable Rust (rustup already ships on the image)
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustc --version && cargo --version
+      - name: Tests (the project's dev profile, which is already opt-level 3)
+        shell: bash
+        run: cargo test --locked
+
+  macos:
+    name: ${{ matrix.name }}
+    if: github.event_name == 'workflow_dispatch' && inputs.macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "macOS Apple Silicon (ARM64, tests the real NEON)", os: macos-latest }
+          - { name: "macOS Intel x86-64", os: macos-15-intel }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Cargo registry cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustc --version && cargo --version
+      - name: Tests
+        run: cargo test --locked

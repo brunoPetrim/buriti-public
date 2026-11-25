@@ -1,0 +1,545 @@
+//! Tokenizador BPE byte-level (estilo GPT-2) lido do próprio GGUF, com o template de chat do modelo:
+//! ChatML (Qwen2) ou o formato de cabeçalhos do Llama 3.x. O pré-tokenizador reproduz, sem usar
+//! regex, o padrão:
+//!   (?i:'s|'t|'re|'ve|'m|'ll|'d) | [^\r\n\p{L}\p{N}]?\p{L}+ | \p{N} | ?[^\s\p{L}\p{N}]+[\r\n]*
+//!   | \s*[\r\n]+ | \s+(?!\S) | \s+
+//! No Llama 3 o número é `\p{N}{1,3}` (até 3 dígitos juntos) em vez de um dígito só.
+
+use std::collections::HashMap;
+
+use super::gguf::Gguf;
+use crate::engine::ChatMsg;
+
+pub struct Tokenizer {
+    vocab: Vec<String>,
+    to_id: HashMap<String, u32>,
+    merge_rank: HashMap<String, u32>,
+    /// tokens especiais (texto, id), do mais longo para o mais curto
+    #[allow(dead_code)] // reservado: encode com tokens especiais
+    specials: Vec<(String, u32)>,
+    byte_enc: [char; 256],
+    byte_dec: HashMap<char, u8>,
+    pub eos: Vec<u32>,
+    chat: Chat,
+    /// quantos dígitos seguidos formam um pré-token (Qwen: 1; Llama 3: 3)
+    digit_group: usize,
+}
+
+/// Formato de chat do modelo e os ids dos tokens especiais que ele usa.
+enum Chat {
+    /// `qwen3`: sem prompt de sistema padrão e sem o raciocínio (`<think>`) das respostas antigas
+    ChatMl { im_start: u32, im_end: u32, qwen3: bool },
+    Llama3 { bos: u32, start_header: u32, end_header: u32, eot: u32 },
+}
+
+enum Seg {
+    Special(u32),
+    Text(String),
+}
+
+impl Tokenizer {
+    pub fn from_gguf(g: &Gguf) -> Result<Tokenizer, String> {
+        let model = g.meta.get("tokenizer.ggml.model").and_then(|v| v.as_str()).unwrap_or("");
+        if model != "gpt2" {
+            return Err(format!("tokenizador '{model}' ainda não suportado (só BPE gpt2/Qwen)"));
+        }
+        let tokens = g.meta.get("tokenizer.ggml.tokens").and_then(|v| v.as_arr()).ok_or("GGUF sem tokenizer.ggml.tokens")?;
+        let vocab: Vec<String> = tokens.iter().map(|t| t.as_str().unwrap_or("").to_string()).collect();
+        let mut to_id = HashMap::with_capacity(vocab.len());
+        for (i, t) in vocab.iter().enumerate() {
+            to_id.entry(t.clone()).or_insert(i as u32);
+        }
+
+        let merges = g.meta.get("tokenizer.ggml.merges").and_then(|v| v.as_arr()).ok_or("GGUF sem tokenizer.ggml.merges")?;
+        let merge_rank = merges
+            .iter()
+            .enumerate()
+            .filter_map(|(i, m)| m.as_str().map(|s| (s.to_string(), i as u32)))
+            .collect::<HashMap<_, _>>();
+
+        // tipos: 3 = control, 4 = user-defined → tratados como especiais
+        let types = g.meta.get("tokenizer.ggml.token_type").and_then(|v| v.as_arr());
+        let mut specials: Vec<(String, u32)> = Vec::new();
+        if let Some(types) = types {
+            for (i, ty) in types.iter().enumerate() {
+                if matches!(ty.as_u64(), Some(3) | Some(4)) && i < vocab.len() && !vocab[i].is_empty() {
+                    specials.push((vocab[i].clone(), i as u32));
+                }
+            }
+        }
+        specials.sort_by_key(|(s, _)| std::cmp::Reverse(s.len()));
+
+        // tabela byte <-> unicode do GPT-2
+        let mut byte_enc = ['\0'; 256];
+        let mut byte_dec = HashMap::new();
+        let mut n = 0u32;
+        for b in 0..=255u32 {
+            let printable = (33..=126).contains(&b) || (161..=172).contains(&b) || (174..=255).contains(&b);
+            let c = if printable {
+                char::from_u32(b).unwrap()
+            } else {
+                let c = char::from_u32(256 + n).unwrap();
+                n += 1;
+                c
+            };
+            byte_enc[b as usize] = c;
+            byte_dec.insert(c, b as u8);
+        }
+
+        let arch = g.meta.get("general.architecture").and_then(|v| v.as_str()).unwrap_or("");
+        let find = |s: &str| to_id.get(s).copied().ok_or_else(|| format!("token ausente: {s} (formato de chat do modelo não reconhecido)"));
+        let (chat, digit_group, mut eos) = if arch == "llama" {
+            // Llama 3.x usa o pré-tokenizador "llama-bpe"; outros (Llama 2 etc.) não são suportados
+            let pre = g.meta.get("tokenizer.ggml.pre").and_then(|v| v.as_str()).unwrap_or("");
+            if pre != "llama-bpe" {
+                return Err(format!("pré-tokenizador '{pre}' ainda não suportado (só llama-bpe do Llama 3.x)"));
+            }
+            let eot = find("<|eot_id|>")?;
+            let chat = Chat::Llama3 {
+                bos: find("<|begin_of_text|>")?,
+                start_header: find("<|start_header_id|>")?,
+                end_header: find("<|end_header_id|>")?,
+                eot,
+            };
+            let mut eos = vec![eot];
+            for s in ["<|end_of_text|>", "<|eom_id|>"] {
+                if let Some(&e) = to_id.get(s) {
+                    eos.push(e);
+                }
+            }
+            (chat, 3, eos)
+        } else {
+            let im_end = find("<|im_end|>")?;
+            let mut eos = vec![im_end];
+            if let Some(&e) = to_id.get("<|endoftext|>") {
+                eos.push(e);
+            }
+            (Chat::ChatMl { im_start: find("<|im_start|>")?, im_end, qwen3: arch == "qwen3" }, 1, eos)
+        };
+        if let Some(e) = g.meta.get("tokenizer.ggml.eos_token_id").and_then(|v| v.as_u64()) {
+            if !eos.contains(&(e as u32)) {
+                eos.push(e as u32);
+            }
+        }
+
+        Ok(Tokenizer { vocab, to_id, merge_rank, specials, byte_enc, byte_dec, eos, chat, digit_group })
+    }
+
+    /// Token de início de texto (BOS), se o modelo exige (Llama 3); o prompt de chat já o inclui.
+    #[cfg_attr(not(test), allow(dead_code))] // o prompt de chat já inclui o BOS; só os testes de logits o usam
+    pub fn bos(&self) -> Option<u32> {
+        match self.chat {
+            Chat::Llama3 { bos, .. } => Some(bos),
+            Chat::ChatMl { .. } => None,
+        }
+    }
+
+    pub fn vocab_size(&self) -> usize {
+        self.vocab.len()
+    }
+
+    // ------------------------------------------------------------ codificação
+
+    /// Codifica texto comum (sem interpretar tokens especiais).
+    pub fn encode_plain(&self, text: &str) -> Vec<u32> {
+        let chars: Vec<char> = text.chars().collect();
+        let mut ids = Vec::new();
+        let mut i = 0;
+        while i < chars.len() {
+            let end = next_pretoken(&chars, i, self.digit_group);
+            let piece: String = chars[i..end].iter().collect();
+            self.bpe(&piece, &mut ids);
+            i = end;
+        }
+        ids
+    }
+
+    fn bpe(&self, piece: &str, out: &mut Vec<u32>) {
+        let mut syms: Vec<String> = piece.bytes().map(|b| self.byte_enc[b as usize].to_string()).collect();
+        while syms.len() > 1 {
+            let mut best: Option<(u32, usize)> = None;
+            for i in 0..syms.len() - 1 {
+                let key = format!("{} {}", syms[i], syms[i + 1]);
+                if let Some(&r) = self.merge_rank.get(&key) {
+                    if best.is_none_or(|(br, _)| r < br) {
+                        best = Some((r, i));
+                    }
+                }
+            }
+            let Some((_, i)) = best else { break };
+            let merged = format!("{}{}", syms[i], syms[i + 1]);
+            syms[i] = merged;
+            syms.remove(i + 1);
+        }
+        for s in syms {
+            match self.to_id.get(&s) {
+                Some(&id) => out.push(id),
+                None => {
+                    // não deveria ocorrer em BPE byte-level; recua para caracteres soltos
+                    for c in s.chars() {
+                        if let Some(&id) = self.to_id.get(&c.to_string()) {
+                            out.push(id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn encode_segments(&self, segs: &[Seg]) -> Vec<u32> {
+        let mut out = Vec::new();
+        for s in segs {
+            match s {
+                Seg::Special(id) => out.push(*id),
+                Seg::Text(t) => out.extend(self.encode_plain(t)),
+            }
+        }
+        out
+    }
+
+    /// Monta o prompt de chat no formato do modelo (ChatML do Qwen ou cabeçalhos do Llama 3). O
+    /// conteúdo do usuário NUNCA é interpretado como token especial (evita injeção de "<|im_end|>",
+    /// "<|eot_id|>" etc. no texto).
+    pub fn chat_prompt(&self, msgs: &[ChatMsg]) -> Vec<u32> {
+        let mut segs: Vec<Seg> = Vec::new();
+        let push_text = |segs: &mut Vec<Seg>, t: &str| match segs.last_mut() {
+            Some(Seg::Text(s)) => s.push_str(t),
+            _ => segs.push(Seg::Text(t.to_string())),
+        };
+        match self.chat {
+            Chat::ChatMl { im_start, im_end, qwen3 } => {
+                // Qwen2.5 injeta um sistema padrão quando não há; o Qwen3 não
+                if !qwen3 && msgs.first().map(|m| m.role.as_str()) != Some("system") {
+                    segs.push(Seg::Special(im_start));
+                    push_text(&mut segs, "system\nYou are Qwen, created by Alibaba Cloud. You are a helpful assistant.");
+                    segs.push(Seg::Special(im_end));
+                    push_text(&mut segs, "\n");
+                }
+                for m in msgs {
+                    segs.push(Seg::Special(im_start));
+                    // Qwen3: o raciocínio das respostas antigas não volta ao prompt (como no template oficial)
+                    let content = if qwen3 && m.role == "assistant" { drop_thinking(&m.content) } else { m.content.as_str() };
+                    push_text(&mut segs, &format!("{}\n{}", m.role, content));
+                    segs.push(Seg::Special(im_end));
+                    push_text(&mut segs, "\n");
+                }
+                segs.push(Seg::Special(im_start));
+                push_text(&mut segs, "assistant\n");
+            }
+            Chat::Llama3 { bos, start_header, end_header, eot } => {
+                // template oficial do Llama 3.1/3.2: o bloco de sistema sempre existe (com a data de
+                // hoje); a 1ª mensagem de sistema, se houver, entra nele; o conteúdo é aparado (trim)
+                let (system, rest) = match msgs.first() {
+                    Some(m) if m.role == "system" => (m.content.trim(), &msgs[1..]),
+                    _ => ("", msgs),
+                };
+                segs.push(Seg::Special(bos));
+                segs.push(Seg::Special(start_header));
+                push_text(&mut segs, "system");
+                segs.push(Seg::Special(end_header));
+                push_text(&mut segs, &format!("\n\nCutting Knowledge Date: December 2023\nToday Date: {}\n\n{system}", today()));
+                segs.push(Seg::Special(eot));
+                for m in rest {
+                    segs.push(Seg::Special(start_header));
+                    push_text(&mut segs, &m.role);
+                    segs.push(Seg::Special(end_header));
+                    push_text(&mut segs, &format!("\n\n{}", m.content.trim()));
+                    segs.push(Seg::Special(eot));
+                }
+                segs.push(Seg::Special(start_header));
+                push_text(&mut segs, "assistant");
+                segs.push(Seg::Special(end_header));
+                push_text(&mut segs, "\n\n");
+            }
+        }
+        self.encode_segments(&segs)
+    }
+
+    // ------------------------------------------------------------ decodificação
+
+    /// Bytes UTF-8 de um token.
+    pub fn token_bytes(&self, id: u32) -> Vec<u8> {
+        let Some(s) = self.vocab.get(id as usize) else { return Vec::new() };
+        let mut out = Vec::with_capacity(s.len());
+        for c in s.chars() {
+            match self.byte_dec.get(&c) {
+                Some(&b) => out.push(b),
+                None => {
+                    let mut buf = [0u8; 4];
+                    out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
+                }
+            }
+        }
+        out
+    }
+
+    #[allow(dead_code)]
+    pub fn is_special(&self, id: u32) -> bool {
+        self.specials.iter().any(|(_, i)| *i == id)
+    }
+}
+
+/// Acumula bytes de tokens e devolve só texto UTF-8 completo (um caractere pode ocupar vários tokens).
+#[derive(Default)]
+pub struct Utf8Stream {
+    buf: Vec<u8>,
+}
+
+impl Utf8Stream {
+    pub fn push(&mut self, bytes: &[u8]) -> String {
+        self.buf.extend_from_slice(bytes);
+        let mut out = String::new();
+        loop {
+            match std::str::from_utf8(&self.buf) {
+                Ok(s) => {
+                    out.push_str(s);
+                    self.buf.clear();
+                    break;
+                }
+                Err(e) => {
+                    let v = e.valid_up_to();
+                    out.push_str(std::str::from_utf8(&self.buf[..v]).unwrap());
+                    match e.error_len() {
+                        Some(n) => {
+                            out.push('\u{FFFD}');
+                            self.buf.drain(..v + n);
+                        }
+                        None => {
+                            self.buf.drain(..v); // sequência incompleta: espera mais bytes
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+}
+
+// ---------------------------------------------------------------- pré-tokenizador
+
+fn is_letter(c: char) -> bool {
+    c.is_alphabetic()
+}
+fn is_number(c: char) -> bool {
+    c.is_numeric()
+}
+fn is_nl(c: char) -> bool {
+    c == '\r' || c == '\n'
+}
+
+/// Remove o raciocínio (`<think>...</think>`) de uma resposta anterior: fica o que vem depois do
+/// último `</think>`, sem as quebras de linha iniciais (como o template oficial do Qwen3).
+fn drop_thinking(content: &str) -> &str {
+    match content.rfind("</think>") {
+        Some(i) => content[i + "</think>".len()..].trim_start_matches('\n'),
+        None => content,
+    }
+}
+
+const MONTHS: [&str; 12] =["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+fn utc_today() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    date_from_unix(secs)
+}
+
+/// Data de HOJE, no fuso local, no formato "%d %b %Y" que o template do Llama 3 usa ("21 Nov 2026"),
+/// como o `strftime_now` do llama.cpp. (Só duas chamadas de sistema mínimas, sem dependências.)
+#[cfg(windows)]
+fn today() -> String {
+    #[repr(C)]
+    struct SystemTime {
+        year: u16,
+        month: u16,
+        day_of_week: u16,
+        day: u16,
+        hour: u16,
+        minute: u16,
+        second: u16,
+        millis: u16,
+    }
+    extern "system" {
+        fn GetLocalTime(t: *mut SystemTime);
+    }
+    let mut t = SystemTime { year: 0, month: 0, day_of_week: 0, day: 0, hour: 0, minute: 0, second: 0, millis: 0 };
+    // SAFETY: GetLocalTime só escreve na estrutura apontada (layout SYSTEMTIME da API do Windows).
+    unsafe { GetLocalTime(&mut t) };
+    if (1..=12).contains(&t.month) && (1..=31).contains(&t.day) {
+        format!("{:02} {} {}", t.day, MONTHS[(t.month - 1) as usize], t.year)
+    } else {
+        utc_today()
+    }
+}
+
+#[cfg(unix)]
+fn today() -> String {
+    use std::ffi::{c_char, c_int, c_long};
+    #[repr(C)]
+    struct Tm {
+        sec: c_int,
+        min: c_int,
+        hour: c_int,
+        mday: c_int,
+        mon: c_int,
+        year: c_int,
+        wday: c_int,
+        yday: c_int,
+        isdst: c_int,
+        gmtoff: c_long,
+        zone: *const c_char,
+    }
+    extern "C" {
+        fn localtime_r(t: *const c_long, out: *mut Tm) -> *mut Tm;
+    }
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as c_long).unwrap_or(0);
+    let mut tm = Tm { sec: 0, min: 0, hour: 0, mday: 0, mon: 0, year: 0, wday: 0, yday: 0, isdst: 0, gmtoff: 0, zone: std::ptr::null() };
+    // SAFETY: localtime_r é thread-safe e só escreve em `tm` (layout de `struct tm` do glibc e do macOS).
+    let r = unsafe { localtime_r(&secs, &mut tm) };
+    if !r.is_null() && (0..12).contains(&tm.mon) && (1..=31).contains(&tm.mday) {
+        format!("{:02} {} {}", tm.mday, MONTHS[tm.mon as usize], tm.year as i64 + 1900)
+    } else {
+        utc_today()
+    }
+}
+
+#[cfg(not(any(windows, unix)))]
+fn today() -> String {
+    utc_today()
+}
+
+fn date_from_unix(secs: i64) -> String {
+    // dias desde 1970-01-01 -> data civil (algoritmo de Howard Hinnant)
+    let z = secs.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    format!("{d:02} {} {y}", MONTHS[(m - 1) as usize])
+}
+
+/// Fim (exclusivo) do próximo pré-token que começa em `i`. `digits` = quantos dígitos seguidos
+/// formam um pré-token (1 no Qwen, 3 no Llama 3).
+fn next_pretoken(c: &[char], i: usize, digits: usize) -> usize {
+    let n = c.len();
+    let ch = c[i];
+
+    // 1) contrações: 's 't 're 've 'm 'll 'd (sem diferenciar maiúsculas)
+    if ch == '\'' && i + 1 < n {
+        let a = c[i + 1].to_ascii_lowercase();
+        if matches!(a, 's' | 't' | 'm' | 'd') {
+            return i + 2;
+        }
+        if i + 2 < n {
+            let b = c[i + 2].to_ascii_lowercase();
+            if matches!((a, b), ('r', 'e') | ('v', 'e') | ('l', 'l')) {
+                return i + 3;
+            }
+        }
+    }
+
+    // 2) [^\r\n\p{L}\p{N}]?\p{L}+
+    let j = if !is_nl(ch) && !is_letter(ch) && !is_number(ch) { i + 1 } else { i };
+    if j < n && is_letter(c[j]) {
+        let mut k = j;
+        while k < n && is_letter(c[k]) {
+            k += 1;
+        }
+        return k;
+    }
+
+    // 3) \p{N} (Qwen) ou \p{N}{1,3} (Llama 3): até `digits` dígitos seguidos
+    if is_number(ch) {
+        let mut k = i + 1;
+        while k < n && k - i < digits && is_number(c[k]) {
+            k += 1;
+        }
+        return k;
+    }
+
+    // 4)  ?[^\s\p{L}\p{N}]+[\r\n]*
+    let j = if ch == ' ' { i + 1 } else { i };
+    let mut k = j;
+    while k < n && !c[k].is_whitespace() && !is_letter(c[k]) && !is_number(c[k]) {
+        k += 1;
+    }
+    if k > j {
+        while k < n && is_nl(c[k]) {
+            k += 1;
+        }
+        return k;
+    }
+
+    // 5..7) espaços em branco
+    let mut ws = i;
+    while ws < n && c[ws].is_whitespace() {
+        ws += 1;
+    }
+    if ws > i {
+        // 5) \s*[\r\n]+  → termina após a última quebra de linha da sequência
+        if let Some(m) = (i..ws).rev().find(|&m| is_nl(c[m])) {
+            return m + 1;
+        }
+        // 6) \s+(?!\S)   → deixa o último espaço para o próximo token, se seguido de não-espaço
+        if ws == n {
+            return ws;
+        }
+        if ws - 1 > i {
+            return ws - 1;
+        }
+        // 7) \s+
+        return ws;
+    }
+
+    i + 1
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drops_thinking() {
+        assert_eq!(drop_thinking("<think>
+raciocinio
+</think>
+
+Resposta"), "Resposta");
+        assert_eq!(drop_thinking("sem raciocinio"), "sem raciocinio");
+        assert_eq!(drop_thinking("<think>a</think>b<think>c</think>
+d"), "d");
+    }
+
+    #[test]
+    fn dates() {
+        assert_eq!(date_from_unix(0), "01 Jan 1970");
+        assert_eq!(date_from_unix(951_782_400), "29 Feb 2000"); // ano bissexto
+        assert_eq!(date_from_unix(1_721_952_000), "26 Jul 2024"); // data usada pelo template do Llama
+        assert_eq!(date_from_unix(1_721_952_000 + 86_399), "26 Jul 2024");
+        assert_eq!(date_from_unix(1_721_952_000 + 86_400), "27 Jul 2024");
+        assert_eq!(date_from_unix(4_102_444_800), "01 Jan 2100");
+    }
+
+    fn pieces(text: &str, digits: usize) -> Vec<String> {
+        let c: Vec<char> = text.chars().collect();
+        let (mut i, mut out) = (0, Vec::new());
+        while i < c.len() {
+            let e = next_pretoken(&c, i, digits);
+            out.push(c[i..e].iter().collect());
+            i = e;
+        }
+        out
+    }
+
+    #[test]
+    fn digit_grouping() {
+        assert_eq!(pieces("12345", 1), ["1", "2", "3", "4", "5"]); // Qwen: um dígito
+        assert_eq!(pieces("12345", 3), ["123", "45"]); // Llama 3: até 3
+        assert_eq!(pieces("a 1234567 b", 3), ["a", " ", "123", "456", "7", " b"]);
+        assert_eq!(pieces("x12", 3), ["x", "12"]);
+    }
+}

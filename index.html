@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="9ee465f0">Buriti - a lightweight, accessible local LLM server in Rust</title>
+<meta data-i18n-a="e46ee170" name="description" content="Buriti is a small local server written in Rust with a web UI in 34 languages. It runs GGUF models with llama.cpp or with its own pure-Rust CPU engine, and exposes an OpenAI-compatible API for code editors. No telemetry.">
+<meta name="color-scheme" content="dark light">
+<script>document.documentElement.className="js";</script>
+<link rel="icon" href="assets/buriti_favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="assets/buriti_icon.png" sizes="512x512">
+<link rel="apple-touch-icon" href="assets/buriti_icon.png">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/site.js"></script>
+</head>
+<body>
+<a data-i18n="0a4470d6" class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" translate="no" href="#top" aria-label="Buriti, top of page"><img src="assets/buriti_icon.png" alt="" width="24" height="24"><span>buriti</span></a>
+    <div class="tools">
+      <select data-i18n-a="89b86ab0" id="lang-select" class="lang-select" aria-label="Language"></select>
+      <button class="theme-btn" id="theme-toggle" type="button"><span class="ico" aria-hidden="true">&#9728;</span> <span class="lbl">light</span></button>
+      <button class="menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav"><span class="bars" aria-hidden="true"></span><span class="lbl">Menu</span></button>
+    </div>
+  </div>
+  <div class="wrap navwrap">
+    <nav data-i18n-a="7ff5a6da" class="nav" id="site-nav" aria-label="Sections">
+      <a data-i18n="97211a88" href="#what">What</a>
+      <a data-i18n="fc338f87" href="#features">Features</a>
+      <a data-i18n="7f5d63aa" href="#engines">Engines</a>
+      <a data-i18n="bbd80cf7" href="#build">Build</a>
+      <a data-i18n="b040b417" href="#architecture">Architecture</a>
+      <a data-i18n="2f908241" href="#code">Buriti Code</a>
+      <a data-i18n="63c90455" href="#performance">Performance</a>
+      <a data-i18n="f25ce1b8" href="#security">Security</a>
+      <a data-i18n="db07be18" href="#languages">Languages</a>
+      <a data-i18n="8119e7f3" href="#roadmap">Roadmap</a>
+      <a data-i18n="18b017e5" href="#contributing">Contribute</a>
+      <a data-i18n="3229609e" href="#license">License</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<div class="hero" id="top">
+  <div class="wrap">
+    <img data-i18n-a="cc77ec8c" class="logo-dark" src="assets/buriti_logo_dark_mode.png" alt="Buriti logo: a buriti palm with orange fruit over green hills, next to the word buriti" width="1109" height="380">
+    <img data-i18n-a="cc77ec8c" class="logo-light" src="assets/buriti_logo.png" alt="Buriti logo: a buriti palm with orange fruit over green hills, next to the word buriti" width="1109" height="380">
+    <h1 translate="no"><span class="caret">$</span> buriti --run-models-locally</h1>
+    <p data-i18n="87e9ffab" class="lead">A lightweight, friendly local runner for AI models, accessible to everyone and adaptable to different computing and financial realities. A small local server in Rust with a web UI in 34 languages that runs GGUF models, with two engines to choose from: <strong>llama.cpp</strong>, or Buriti's own <strong>pure-Rust engine</strong>.</p>
+    <p data-i18n="78d90179" class="sub">One executable of about 5 MB. Your chats are stored encrypted on your machine. No telemetry: the network is used only when you click a download.</p>
+    <div data-i18n="01d9c2ba" class="btns">
+      <a class="btn primary" href="https://github.com/brunoPetrim/buriti-public">GitHub repository</a>
+      <a class="btn secondary" href="#build">Build from source</a>
+    </div>
+    <ul data-i18n-a="a5fbbe35" class="badges" aria-label="Project status">
+      <li data-i18n="265f778d">written in Rust</li>
+      <li data-i18n="141ded90">GGUF models</li>
+      <li data-i18n="bd8e2965">34 UI languages</li>
+      <li data-i18n="c41a16e6">OpenAI-compatible API</li>
+      <li data-i18n="c9e0a9f4">loopback only</li>
+      <li data-i18n="41a9ce17">status: working, in active development</li>
+    </ul>
+  </div>
+</div>
+
+<section id="what">
+  <div class="wrap">
+    <h2 data-i18n="6f068341">What is Buriti</h2>
+    <p data-i18n="55e5356b" class="kicker">Run open-source LLMs (Qwen, Llama, Gemma, Mistral, Phi) on your own computer, from a clean browser interface, without cloud accounts.</p>
+    <div class="grid">
+      <div class="card">
+        <h3 data-i18n="5d740b75">Why it exists</h3>
+        <p data-i18n="22f6ccfc">Buriti aims to make AI models <strong>accessible to everyone</strong>, especially people who are usually left out for lack of resources: one small native executable that adapts to the memory and processor you have, everything configurable from the web UI, and a choice of how the model is executed. Ollama was the inspiration and a guide for the start of the project.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="5f140999">Everything in Rust</h3>
+        <p data-i18n="ee6dad51">Server, own inference engine and build are all Rust. No Go, no cgo, no system libraries to install: TLS uses <code>rustls</code>, which is pure Rust.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="feca2b01">Your files stay put</h3>
+        <p data-i18n="2b1a517f">To use a model you already have, point Buriti at the <code>.gguf</code> path. Files are used where they are: <strong>nothing is uploaded or copied</strong>.</p>
+      </div>
+    </div>
+    <div data-i18n="6253807a" class="note"><strong>Status:</strong> working and in active development. Tested on Windows 10 x64. Linux and macOS builds are expected to work but have <strong>not been tested yet</strong>. No pre-built binaries are published yet.</div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2 data-i18n="fc338f87">Features</h2>
+    <ul>
+      <li data-i18n="42b54377">Chat UI with a sidebar of past conversations, <strong>encrypted at rest</strong>.</li>
+      <li data-i18n="f8182990"><strong>Model catalog</strong> with provider, release date, size, license, strengths and "best for" notes, plus a "recommended for your PC" hint. Or point Buriti at any <code>.gguf</code> already on disk.</li>
+      <li data-i18n="86f4992d">Step-by-step first-run guide: choose an engine, choose a model, start chatting.</li>
+      <li data-i18n="114716be">Settings in the UI: engine, model, CPU threads, context size, GPU layers, port.</li>
+      <li data-i18n="6d3654b2"><strong>Buriti Code</strong>: an OpenAI-compatible API on <code>127.0.0.1</code> so editors can use the loaded model for chat and fill-in-the-middle autocomplete. <a href="#code">Details below.</a></li>
+      <li data-i18n="dac27670">Light and dark themes, a built-in tutorial and on-screen warnings for the usual pain points (weak PC, low RAM, SmartScreen, firewall, losing the history key).</li>
+      <li data-i18n="d6a1b685">One executable: the web UI is embedded in the binary.</li>
+      <li data-i18n="fffd5504">Downloads (models and the llama.cpp engine) accepted only when their SHA-256 matches.</li>
+    </ul>
+    <p data-i18n="22d9fb69">The catalog ships these models, all Q4_K_M with verified SHA-256 (see the README for the current list): Qwen 2.5 0.5B / 1.5B / 3B, Qwen 3 0.6B, Gemma 3 1B, Llama 3.2 1B / 3B, Phi-3.1 mini, Phi-3.5 mini, Phi-4-mini and Mistral 7B Instruct v0.3. Check each model's license before commercial use: the Qwen 2.5 3B card is marked non-commercial (Qwen Research License) and Gemma has its own terms.</p>
+  </div>
+</section>
+
+<section id="engines">
+  <div class="wrap">
+    <h2 data-i18n="33cc11b2">Two engines</h2>
+    <p data-i18n="8a6dcd69" class="kicker">You pick the engine that runs the model. The own engine is an alternative to llama.cpp, not a replacement.</p>
+    <div class="grid">
+      <div class="card">
+        <h3 data-i18n="5c58ce00">llama.cpp</h3>
+        <p data-i18n="1b7ac078"><code>llama-server</code>, downloaded from the UI with a SHA-256 check and run as a child process. The fastest and most compatible option; the only route to GPU (Vulkan build, <em>untested on real hardware</em>).</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="d504185d">Buriti's own engine</h3>
+        <p data-i18n="64ae2367">Written from scratch in Rust and built into the executable: no download, no extra process. CPU only (AVX2/F16C on x86-64, NEON on ARM64). Matches llama.cpp's generation speed on several models (see <a href="#performance">Performance</a>).</p>
+      </div>
+    </div>
+
+    <h3 data-i18n="13cbbed8">What the own engine runs</h3>
+    <div class="tbl">
+      <table>
+        <caption data-i18n="517cbb23">Architectures, and how each was checked against llama.cpp</caption>
+        <thead><tr><th data-i18n="b040b417">Architecture</th><th data-i18n="343f16f5">Validation (llama.cpp b12606)</th></tr></thead>
+        <tbody>
+          <tr><td data-i18n="67e84fcf">Qwen 2 / 2.5</td><td data-i18n="0f147465">Tokens, chat-prompt ids and logits; F16 control</td></tr>
+          <tr><td data-i18n="c80270ba">Qwen 3 (dense)</td><td data-i18n="f5f787c9">F16 control on 0.6B. Qwen3 4B: top-1 matches, but numeric-only text differs more than expected (see below)</td></tr>
+          <tr><td data-i18n="2225b9b7">Llama 3.x</td><td data-i18n="b515edbf">Validated with 3.2; F16 control</td></tr>
+          <tr><td data-i18n="a99a7025">Gemma 3 (text only)</td><td data-i18n="896be2fb">1B validated; F16 control, including a 613-token text beyond the 512 sliding window</td></tr>
+          <tr><td data-i18n="2eac04d1">Mistral 7B Instruct v0.3</td><td data-i18n="9125c3e5">Quantized files only (weaker evidence)</td></tr>
+          <tr><td data-i18n="e3a82da7">Phi-3 mini 4k</td><td data-i18n="272190d4">Quantized files only (Q4_K_M and Q8_0)</td></tr>
+          <tr><td data-i18n="2242d237">Phi-3.5 mini, Phi-4-mini</td><td data-i18n="9de92443">Tokens, chat ids and logits on quantized files; no F16 control. Phi-4-mini had no end-to-end chat test in that round</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tbl">
+      <table>
+        <caption data-i18n="2b2e3c08">Weight formats</caption>
+        <thead><tr><th data-i18n="0bf8509b">Supported</th><th data-i18n="94cbfd78">Not supported yet (use llama.cpp)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>Q4_0</code> <code>Q4_1</code> <code>Q5_0</code> <code>Q5_1</code> <code>Q8_0</code> <code>Q4_K</code> <code>Q5_K</code> <code>Q6_K</code> <code>F16</code> <code>BF16</code> <code>F32</code></td>
+            <td data-i18n="3f0159d3"><code>Q2_K</code> <code>Q3_K</code> <code>Q8_K</code> and the <code>IQ*</code> family</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tbl">
+      <table>
+        <caption data-i18n="09f0e419">Capabilities of the own engine</caption>
+        <thead><tr><th data-i18n="ecdda59a">Item</th><th data-i18n="f78e3a2e">Own engine</th><th data-i18n="845bf435">llama.cpp engine</th></tr></thead>
+        <tbody>
+          <tr><td data-i18n="6ecf26df">Runs on CPU</td><td data-i18n="fb360f9c" class="yes">yes</td><td data-i18n="fb360f9c" class="yes">yes</td></tr>
+          <tr><td data-i18n="6994ffdb">x86-64 with AVX2/F16C</td><td data-i18n="daf7e6f0" class="yes">yes (explicit kernels; generic fallback for other CPUs)</td><td data-i18n="fb360f9c" class="yes">yes</td></tr>
+          <tr><td data-i18n="4a8f14b7">ARM64 with NEON</td><td data-i18n="fdba1d92">implemented; validated only by emulation, cross-compilation and a runtime self-test. Speed unmeasured</td><td data-i18n="fb360f9c" class="yes">yes</td></tr>
+          <tr><td data-i18n="a6a63185">GPU</td><td data-i18n="fa362531" class="no">no (planned via wgpu)</td><td data-i18n="38129abb">Vulkan build available; untested by the maintainer</td></tr>
+          <tr><td data-i18n="96a46e99">Gemma 1 and 2, Mistral v0.1/v0.2, Llama 2</td><td data-i18n="6f6427dd" class="no">refused with a clear message</td><td data-i18n="fb360f9c" class="yes">yes</td></tr>
+          <tr><td data-i18n="93c4ef92">Vision models, mixture-of-experts</td><td data-i18n="fd128635" class="no">no</td><td data-i18n="4a6856d2">per llama.cpp</td></tr>
+          <tr><td data-i18n="abda8494">Phi-3 mini 128K, Phi-3 small/medium, Phi-4 14B</td><td data-i18n="0dd069c1" class="no">not covered</td><td data-i18n="4a6856d2">per llama.cpp</td></tr>
+          <tr><td data-i18n="29c0fb9d">Mistral Nemo/Small ("tekken" tokenizer)</td><td data-i18n="0dd069c1" class="no">not covered</td><td data-i18n="4a6856d2">per llama.cpp</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p data-i18n="b27da2d3" class="muted">Not covered by validation: Qwen3 1.7B/8B and Gemma 3 4B and up use the same code but were not tested with real files. Context beyond about 8 thousand tokens was not exercised for the Phi longrope models.</p>
+  </div>
+</section>
+
+<section id="build">
+  <div class="wrap">
+    <h2 data-i18n="772da181">Quick start / build from source</h2>
+    <p data-i18n="bd4c26c3" class="kicker">Requirements: Rust (stable, via <a href="https://rustup.rs">rustup</a>) and a linker/C toolchain for your OS. There are no system libraries to install.</p>
+
+    <h3 data-i18n="ca05c4b8">Windows (no Visual Studio needed)</h3>
+    <p data-i18n="57c86e65">The maintainer uses the GNU toolchain with MinGW-w64. The MSVC build tools also work in principle, but that path has not been verified.</p>
+    <div class="codebox"><div data-i18n="5c34f117" class="bar">PowerShell</div><pre><code><span class="c"># one-time setup</span>
+<span class="f">rustup</span> default stable-x86_64-pc-windows-gnu
+<span class="f">winget</span> install BrechtSanders.WinLibs.POSIX.UCRT
+
+<span class="c"># in a new session cargo may not be on PATH: add it and MinGW's bin folder</span>
+<span class="p">$mingw</span> = <span class="f">Get-ChildItem</span> <span class="s">"$env:LOCALAPPDATA\Microsoft\WinGet\Packages"</span> -Directory -Filter <span class="s">"BrechtSanders.WinLibs*"</span> <span class="k">|</span> % { <span class="f">Join-Path</span> <span class="p">$_</span>.FullName <span class="s">"mingw64\bin"</span> }
+<span class="p">$env:PATH</span> = <span class="s">"$env:USERPROFILE\.cargo\bin;$mingw;$env:PATH"</span>
+
+<span class="c"># build and run</span>
+<span class="f">git</span> clone &lt;this repository&gt;
+<span class="f">cd</span> buriti
+<span class="f">cargo</span> build --release
+.\target\release\buriti.exe</code></pre></div>
+    <p data-i18n="eb586bc3">The executable icon is embedded at build time by <code>build.rs</code> (needs <code>windres</code> from MinGW, or <code>rc.exe</code> with MSVC). If the icon step fails the build still succeeds, only without the icon. Because the executable is not code-signed yet, Windows SmartScreen or your antivirus may warn on first run.</p>
+
+    <h3 data-i18n="5e112e7d">Linux and macOS <span class="muted">(untested)</span></h3>
+    <div data-i18n="29d3949e" class="note"><strong>Untested:</strong> these commands follow the standard Rust tooling but have not been executed by the maintainer. Reports are welcome.</div>
+    <div class="codebox"><div data-i18n="c8a16b49" class="bar">bash</div><pre><code><span class="c"># Linux: a C linker is enough (build-essential on Debian/Ubuntu). macOS: Xcode command line tools.</span>
+<span class="f">git</span> clone &lt;this repository&gt;
+<span class="f">cd</span> buriti
+<span class="f">cargo</span> build --release
+./target/release/buriti</code></pre></div>
+
+    <h3 data-i18n="23ea0554">First run</h3>
+    <ol>
+      <li data-i18n="75a18418">Start <code>buriti</code>. Your browser opens at <code>http://127.0.0.1:8421/#token=...</code> (the console prints the same URL). The token changes on every start.</li>
+      <li data-i18n="e6d67975">In the <strong>"Let's get started"</strong> card choose an engine (download llama.cpp, verified with SHA-256, or use Buriti's own), then a model from the catalog or a <code>.gguf</code> from your disk.</li>
+      <li data-i18n="456b2f31">Start the engine and chat. Next time the engine starts by itself.</li>
+    </ol>
+    <p data-i18n="8491f676">A first release build takes a few minutes (about 5.5 minutes on a 2-core laptop, because of LTO) and yields an executable of about 5 MB that runs from any folder. A plain <code>cargo build</code> is also optimized (<code>opt-level = 3</code>), because the engine is about 20 times slower without optimization. Stop with <code>Ctrl+C</code>; the engines stop too.</p>
+
+    <h3 data-i18n="75416485">Configuration</h3>
+    <p data-i18n="cbdff777">Day-to-day settings live in the UI. These environment variables are for deployment and development:</p>
+    <div class="tbl">
+      <table>
+        <caption data-i18n="1173b2e1">Environment variables</caption>
+        <thead><tr><th data-i18n="19de69cb">Variable</th><th data-i18n="720b5dbc">Effect</th></tr></thead>
+        <tbody>
+          <tr><td><code>BURITI_HOME</code></td><td data-i18n="c7a088e9">Data folder (default: <code>buriti-data</code> next to the executable).</td></tr>
+          <tr><td><code>BURITI_PORT</code></td><td data-i18n="77f471b7">Force the web UI / API port (default <code>8421</code>; fails with a clear message if busy). Without it Buriti reuses the last port it used and, if that is busy, takes the next free one and says so in the console.</td></tr>
+          <tr><td><code>BURITI_ENGINE</code></td><td data-i18n="f2299050">Path to a <code>llama-server</code> binary to use instead of the downloaded one. Deliberately not editable from the web UI.</td></tr>
+          <tr><td><code>BURITI_KEY_FILE</code></td><td data-i18n="949f8d04">Path of the history encryption key.</td></tr>
+          <tr><td><code>BURITI_NO_BROWSER</code></td><td data-i18n="3b5d78e1">If set, do not open the browser on start.</td></tr>
+          <tr><td><code>BURITI_DIAG</code></td><td data-i18n="520d98a2">If set to <code>1</code>, the own engine prints timing per weight format and per phase to stderr.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p data-i18n="6429209f"><strong>Where things are stored:</strong> <code>buriti-data/</code> holds <code>models/</code>, <code>engine/</code>, <code>history/</code>, <code>settings.json</code> and <code>engine.log</code>. The history key is kept in your user profile, not next to the chats (<code>%APPDATA%\Buriti\key.bin</code> on Windows, <code>~/.config/Buriti/key.bin</code> on Linux, <code>~/Library/Application Support/Buriti/key.bin</code> on macOS). <strong>If you lose this file, old conversations cannot be recovered.</strong></p>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <h2 data-i18n="b040b417">Architecture</h2>
+    <p data-i18n="3159fa91" class="kicker">A small axum server in front of an <code>Engine</code> trait with two implementations. The web UI and the editor API never need to know which one is active.</p>
+    <div class="diagram">
+      <svg viewBox="0 0 860 270" role="img" aria-labelledby="dg-t dg-d" xmlns="http://www.w3.org/2000/svg">
+        <title data-i18n="f94dabcf" id="dg-t">Buriti request flow</title>
+        <desc data-i18n="b5426ecc" id="dg-d">The browser and code editors send HTTP requests to the Buriti server on 127.0.0.1 port 8421. The server uses an Engine trait with two implementations: the llama.cpp llama-server child process on 127.0.0.1 port 8081, or the own Rust engine running in process. Both read a GGUF model file.</desc>
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0 0 L10 5 L0 10 z"/></marker>
+        </defs>
+        <rect class="box" x="10" y="30" width="170" height="64" rx="8"/>
+        <text data-i18n="54a2cf5e" x="95" y="58" text-anchor="middle">Browser</text>
+        <text data-i18n="5475c102" class="dim" x="95" y="78" text-anchor="middle">web UI (34 languages)</text>
+
+        <rect class="box" x="10" y="176" width="170" height="64" rx="8"/>
+        <text data-i18n="2faee521" x="95" y="204" text-anchor="middle">Code editor</text>
+        <text class="dim" x="95" y="224" text-anchor="middle">Continue, JetBrains...</text>
+
+        <rect class="box a" x="270" y="60" width="210" height="150" rx="8"/>
+        <text data-i18n="d1f787b6" x="375" y="90" text-anchor="middle">Buriti server</text>
+        <text class="dim" x="375" y="110" text-anchor="middle">Rust, axum</text>
+        <text class="dim" x="375" y="130" text-anchor="middle">127.0.0.1:8421</text>
+        <text data-i18n="a7a4255b" class="dim" x="375" y="156" text-anchor="middle">/api  session token</text>
+        <text data-i18n="e6adde0e" class="dim" x="375" y="174" text-anchor="middle">/v1   API key</text>
+        <text class="dim" x="375" y="192" text-anchor="middle">trait Engine</text>
+
+        <rect class="box b" x="570" y="20" width="170" height="80" rx="8"/>
+        <text data-i18n="5c58ce00" x="655" y="48" text-anchor="middle">llama.cpp</text>
+        <text data-i18n="334724da" class="dim" x="655" y="67" text-anchor="middle">llama-server, child process</text>
+        <text class="dim" x="655" y="84" text-anchor="middle">127.0.0.1:8081</text>
+
+        <rect class="box a" x="570" y="170" width="170" height="80" rx="8"/>
+        <text data-i18n="f78e3a2e" x="655" y="198" text-anchor="middle">Own engine</text>
+        <text data-i18n="681244e0" class="dim" x="655" y="217" text-anchor="middle">src/native, in process</text>
+        <text data-i18n="5b33dff6" class="dim" x="655" y="234" text-anchor="middle">CPU: AVX2 / NEON</text>
+
+        <rect class="box" x="780" y="95" width="70" height="80" rx="8"/>
+        <text x="815" y="130" text-anchor="middle">.gguf</text>
+        <text data-i18n="1d06a0d7" class="dim" x="815" y="150" text-anchor="middle">model</text>
+
+        <line x1="180" y1="62" x2="268" y2="95" marker-end="url(#ah)"/>
+        <line x1="180" y1="208" x2="268" y2="175" marker-end="url(#ah)"/>
+        <line x1="480" y1="105" x2="568" y2="70" marker-end="url(#ah)"/>
+        <line x1="480" y1="165" x2="568" y2="200" marker-end="url(#ah)"/>
+        <line x1="740" y1="60" x2="798" y2="93" marker-end="url(#ah)"/>
+        <line x1="740" y1="210" x2="798" y2="177" marker-end="url(#ah)"/>
+        <text class="dim" x="224" y="68" text-anchor="middle">HTTP</text>
+        <text class="dim" x="224" y="206" text-anchor="middle">HTTP</text>
+        <text class="dim" x="524" y="76" text-anchor="middle">HTTP</text>
+        <text data-i18n="51b6cb25" class="dim" x="526" y="196" text-anchor="middle">calls</text>
+      </svg>
+    </div>
+
+    <h3 data-i18n="9289473e">Components</h3>
+    <ul>
+      <li data-i18n="0272f10e"><strong>Web</strong> (<code>web/</code>): plain HTML/JS embedded in the binary.</li>
+      <li data-i18n="19a9e41d"><strong>Server</strong> (<code>src/server.rs</code>): <code>/api</code> routes behind middleware (session token and <code>Host</code> check); the OpenAI-compatible routes are under <code>/v1</code>.</li>
+      <li data-i18n="0c7d8d4d"><strong>Engine</strong> (<code>src/engine/</code>): the <code>Engine</code> trait (<code>start</code>, <code>stop</code>, <code>status</code>, <code>chat</code>, <code>complete</code>) with <code>LlamaServerEngine</code> (child process) and <code>NativeEngine</code> (in process).</li>
+      <li data-i18n="43a4790a"><strong>Download</strong> (<code>src/download.rs</code>): streaming downloads with SHA-256 verification; archives are extracted without running anything.</li>
+      <li data-i18n="737ef74e"><strong>History</strong> (<code>src/history.rs</code>): one file per conversation, encrypted with ChaCha20-Poly1305, the conversation id as associated data.</li>
+    </ul>
+
+    <h3 data-i18n="55c51076">Module layout</h3>
+    <pre class="plain"><code><span class="t">Cargo.toml, build.rs, buriti.rc</span>   <span class="c">package, icon embedding</span>
+<span class="t">src/main.rs</span>                        <span class="c">entry point: token, auto-start engine, open browser</span>
+<span class="t">src/server.rs</span>                      <span class="c">/api routes, security (token + Host check), file browser</span>
+<span class="t">src/openai.rs</span>                      <span class="c">/v1 OpenAI-compatible API (Buriti Code)</span>
+<span class="t">src/config.rs</span>                      <span class="c">settings (editable from the web UI) and paths</span>
+<span class="t">src/history.rs</span>                     <span class="c">encrypted history (ChaCha20-Poly1305)</span>
+<span class="t">src/catalog.rs</span>                     <span class="c">model catalog (metadata + SHA-256)</span>
+<span class="t">src/download.rs</span>                    <span class="c">verified downloads (models and the llama.cpp engine)</span>
+<span class="t">src/gpu.rs</span>                         <span class="c">best-effort GPU detection</span>
+<span class="t">src/engine/</span>                       <span class="c">Engine trait + the llama.cpp engine (child process)</span>
+<span class="t">src/native/</span>                       <span class="c">Buriti's own engine</span>
+    gguf.rs                         <span class="c">GGUF reader (mmap, bounds-checked)</span>
+    tokenizer.rs                    <span class="c">BPE and SentencePiece tokenizers, chat templates</span>
+    model.rs                        <span class="c">transformer forward pass (single token and batched prefill)</span>
+    kernels.rs, neon.rs, vmath.rs   <span class="c">int8 dot-product kernels (AVX2 / NEON), exp, attention</span>
+    quant.rs, f16.rs                <span class="c">dequantization reference, f16 helpers (KV cache)</span>
+    mod.rs                          <span class="c">engine glue, sampling, streaming</span>
+<span class="t">web/</span>                              <span class="c">UI (HTML/JS, 34 languages), embedded in the binary</span>
+<span class="t">tools/</span>                            <span class="c">measurement and validation scripts (PowerShell)</span>
+<span class="t">docs/</span>                             <span class="c">ARCHITECTURE.md, DECISIONS.md, ROADMAP.md</span></code></pre>
+
+    <h3 data-i18n="4e40be37">Own-engine design notes</h3>
+    <ul>
+      <li data-i18n="92c558bb"><strong>Correctness before speed.</strong> Every kernel has a test against a float reference. The 1-, 4- and 8-activation kernels must give strictly identical results, and batched prefill must be bit-identical to token-by-token processing, KV-cache bytes included.</li>
+      <li data-i18n="93395c20">Int8 activation quantization with integer dot products (the technique llama.cpp uses), explicit AVX2 kernels with a generic fallback, KV cache in f16, prefill in batches of 32 tokens.</li>
+      <li data-i18n="b758b2de">GGUF is read through <code>mmap</code> with bounds checks everywhere: a malformed file produces an error, never a panic.</li>
+      <li data-i18n="f06bedd0">Code that cannot be tested on the dev machine (ARM) only ships with emulation in tests, cross-compilation and a runtime self-test that falls back to the generic path.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="code">
+  <div class="wrap">
+    <h2 data-i18n="2f908241">Buriti Code</h2>
+    <p data-i18n="188a3224" class="kicker">An OpenAI-compatible API so code editors can use the model loaded in Buriti for chat and inline autocomplete. "Buriti Code" is a product name.</p>
+    <p data-i18n="aa545bdb">The API lives at <code>http://127.0.0.1:8421/v1</code> (use the port printed at start-up), loopback only. Start the engine with a model first: requests made while it is not <code>ready</code> get HTTP 409.</p>
+
+    <div class="tbl">
+      <table>
+        <caption data-i18n="b71c5271">Endpoints</caption>
+        <thead><tr><th data-i18n="8777dd55">Method and path</th><th data-i18n="a0fb821b">Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /v1/models</code></td><td data-i18n="243fe702">The loaded model.</td></tr>
+          <tr><td><code>POST /v1/chat/completions</code></td><td data-i18n="e9a9f601">Chat, streaming (SSE) or not. Fields: <code>messages</code>, <code>stream</code>, <code>temperature</code>, <code>max_tokens</code>, <code>stop</code>.</td></tr>
+          <tr><td><code>POST /v1/completions</code></td><td data-i18n="e6fc622e">Raw text completion. With <code>suffix</code> the model fills the gap between <code>prompt</code> (code before the cursor) and <code>suffix</code> (code after it): fill-in-the-middle, which is how inline autocomplete works.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 data-i18n="cf678cab">API key</h3>
+    <p data-i18n="42009684">A stable key is created on first run and stored in your user profile next to the history key (on Windows, <code>%APPDATA%\Buriti\api-key.txt</code>). The web UI shows it on the <strong>API</strong> page, where you can also regenerate it. Send it as <code>Authorization: Bearer &lt;key&gt;</code>. The <code>Host</code> header must be <code>127.0.0.1:&lt;port&gt;</code> or <code>localhost:&lt;port&gt;</code>. The <code>/v1</code> routes send no CORS headers, so a web page cannot call them from your browser.</p>
+
+    <h3 data-i18n="7ddd66b6">Try it</h3>
+    <div class="codebox"><div data-i18n="bba228b4" class="bar">chat (bash quoting; macOS, Linux, Git Bash)</div><pre><code><span class="f">curl</span> http://127.0.0.1:8421/v1/chat/completions \
+  <span class="p">-H</span> <span class="s">"Authorization: Bearer $BURITI_KEY"</span> \
+  <span class="p">-H</span> <span class="s">"Content-Type: application/json"</span> \
+  <span class="p">-d</span> <span class="s">'{"model":"buriti","messages":[{"role":"user","content":"Write a Python function that reverses a string."}],"stream":false,"temperature":0.2,"max_tokens":200}'</span></code></pre></div>
+    <div class="codebox"><div data-i18n="7df47f87" class="bar">fill-in-the-middle</div><pre><code><span class="f">curl</span> http://127.0.0.1:8421/v1/completions \
+  <span class="p">-H</span> <span class="s">"Authorization: Bearer $BURITI_KEY"</span> \
+  <span class="p">-H</span> <span class="s">"Content-Type: application/json"</span> \
+  <span class="p">-d</span> <span class="s">'{"model":"buriti","prompt":"def add(a, b):\n    ","suffix":"\n\nprint(add(1, 2))","max_tokens":64,"temperature":0,"stream":false}'</span></code></pre></div>
+
+    <h3 data-i18n="34df826b">Editor setup (summary)</h3>
+    <p data-i18n="b8a6563c">The web UI's <strong>Buriti Code</strong> page shows these with your real URL and key filled in.</p>
+    <div class="grid">
+      <div class="card">
+        <h3 data-i18n="8bdfa8e2">Continue (VS Code and JetBrains)</h3>
+        <p data-i18n="8c328dcc">Point the <code>openai</code> provider at Buriti with <code>apiBase</code> in <code>~/.continue/config.yaml</code> (Windows: <code>%USERPROFILE%\.continue\config.yaml</code>):</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="2a497853">JetBrains AI Assistant</h3>
+        <p data-i18n="1108ef8c">Settings | Tools | AI Assistant | Providers &amp; API keys: enter the URL and the API key, click Test Connection, leave tool calling off, then assign the model to the features you want. Per JetBrains, inline code completion has a separate setting.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="87b84ee2">Cline (VS Code)</h3>
+        <p data-i18n="483ea1fb">Choose the OpenAI Compatible provider and enter the base URL, API key and model id. Cline is an agent that needs tool calling, which Buriti lacks, so expect limited results.</p>
+      </div>
+    </div>
+    <div class="codebox"><div data-i18n="d7d99eef" class="bar">~/.continue/config.yaml</div><pre><code><span class="k">name</span>: Buriti local
+<span class="k">version</span>: <span class="n">1.0.0</span>
+<span class="k">schema</span>: v1
+<span class="k">models</span>:
+  - <span class="k">name</span>: Buriti chat
+    <span class="k">provider</span>: openai
+    <span class="k">model</span>: buriti   <span class="c"># or an id returned by GET /v1/models</span>
+    <span class="k">apiBase</span>: http://127.0.0.1:8421/v1
+    <span class="k">apiKey</span>: &lt;API_KEY&gt;
+    <span class="k">roles</span>:
+      - chat
+      - edit
+      - apply
+  - <span class="k">name</span>: Buriti autocomplete
+    <span class="k">provider</span>: openai
+    <span class="k">model</span>: buriti
+    <span class="k">apiBase</span>: http://127.0.0.1:8421/v1
+    <span class="k">apiKey</span>: &lt;API_KEY&gt;
+    <span class="k">roles</span>:
+      - autocomplete</code></pre></div>
+    <p data-i18n="ccc6b4dd">Model choice: for autocomplete the UI suggests Qwen2.5-Coder 1.5B (fast); for chat, Qwen2.5-Coder 7B or Qwen 3 4B. On weak CPUs the 7B is slow, so prefer the 1.5B for everything.</p>
+
+    <h3 data-i18n="c3206e4c">Honest limits</h3>
+    <div class="note">
+      <ul>
+        <li data-i18n="71a08ed3"><strong>No editor plugin has been tested end to end</strong> (Continue, Cline, JetBrains). The wire format follows the documentation; real interoperability is unverified.</li>
+        <li data-i18n="2c7fa1a0">Not supported, and rejected with a clear error instead of being ignored: tool/function calling (<code>tools</code>), <code>n</code> &gt; 1 and image content. No embeddings endpoint (so no codebase indexing), no <code>usage</code> and no <code>logprobs</code>.</li>
+        <li data-i18n="206f087c">Requests are processed one at a time, and chat and autocomplete share the one loaded model.</li>
+        <li data-i18n="3e981e2e">Fill-in-the-middle needs a model with FIM tokens; the Qwen2.5-Coder family works in both engines. Instruct variants tend to keep generating after the gap, base models stop cleanly, and editor plugins usually cut the output. FIM for other model families was not tested.</li>
+        <li data-i18n="df580c4e">Autocomplete latency depends on your CPU. Measured once, with Qwen2.5-Coder 1.5B on the i7-7500U: about 0.3 to 0.5 s of prefill for 15 to 20 tokens and about 14 tokens/s generation. Only viable with small models.</li>
+      </ul>
+    </div>
+    <p data-i18n="9acf9f29" class="muted">Buriti Code is not affiliated with, endorsed by or sponsored by OpenAI, Microsoft/GitHub, JetBrains, Continue or Cline. Those names are used only to say which tools it works with.</p>
+  </div>
+</section>
+
+<section id="performance">
+  <div class="wrap">
+    <h2 data-i18n="7237a3a6">Performance and validation</h2>
+    <p data-i18n="7be41a4b" class="kicker">Every number here comes from the project's decision log, with the condition it was measured under. They are one machine and one CPU generation: treat them as indicative.</p>
+
+    <div class="tbl">
+      <table>
+        <caption data-i18n="a8c0ecb4">Own engine vs llama.cpp (build b12606): Intel Core i7-7500U (2 cores / 4 threads, AVX2 only), 4 threads, CPU only, Q4_K_M unless noted, interleaved runs, 3 rounds, medians, a prompt of about 560 tokens, development build (opt-level 3, no LTO), measured on 2026-11-24</caption>
+        <thead>
+          <tr><th data-i18n="68c2cc7f" rowspan="2">Model</th><th data-i18n="decbb2db" colspan="3">Prefill (tok/s)</th><th data-i18n="21984ed2" colspan="3">Generation (tok/s)</th></tr>
+          <tr><th translate="no" class="num">llama.cpp</th><th translate="no" class="num">Buriti</th><th data-i18n="3e8577af" class="num">Buriti / llama.cpp</th><th translate="no" class="num">llama.cpp</th><th translate="no" class="num">Buriti</th><th data-i18n="3e8577af" class="num">Buriti / llama.cpp</th></tr>
+        </thead>
+        <tbody>
+          <tr><td translate="no">Qwen 2.5 0.5B</td><td class="num">88.2</td><td class="num">162.1</td><td class="num">184%</td><td class="num">30.8</td><td class="num">33.6</td><td class="num">109%</td></tr>
+          <tr><td translate="no">Qwen3 0.6B</td><td class="num">143.3</td><td class="num">144.6</td><td class="num">101%</td><td class="num">33.2</td><td class="num">30.4</td><td class="num">91%</td></tr>
+          <tr><td translate="no">Gemma 3 1B</td><td class="num">48.6</td><td class="num">87.5</td><td class="num">180%</td><td class="num">16.3</td><td class="num">16.8</td><td class="num">103%</td></tr>
+          <tr><td translate="no">Llama 3.2 1B</td><td class="num">79.2</td><td class="num">91.4</td><td class="num">115%</td><td class="num">17.4</td><td class="num">17.4</td><td class="num">100%</td></tr>
+          <tr><td translate="no">Qwen 2.5 1.5B</td><td class="num">57.2</td><td class="num">68.6</td><td class="num">120%</td><td class="num">13.7</td><td class="num">13.8</td><td class="num">101%</td></tr>
+          <tr><td translate="no">Qwen2.5-Coder 1.5B (Q8_0)</td><td class="num">31.8</td><td class="num">55.2</td><td class="num">174%</td><td class="num">8.85</td><td class="num">8.77</td><td class="num">99%</td></tr>
+          <tr><td translate="no">StarCoder2 3B</td><td class="num">26.0</td><td class="num">32.0</td><td class="num">123%</td><td class="num">7.36</td><td class="num">7.46</td><td class="num">101%</td></tr>
+          <tr><td translate="no">Llama 3.2 3B</td><td class="num">27.0</td><td class="num">33.1</td><td class="num">122%</td><td class="num">7.05</td><td class="num">6.89</td><td class="num">98%</td></tr>
+          <tr><td translate="no">Phi-4-mini</td><td class="num">23.5</td><td class="num">25.5</td><td class="num">109%</td><td class="num">5.62</td><td class="num">5.58</td><td class="num">99%</td></tr>
+          <tr><td translate="no">Qwen3 4B</td><td class="num">20.1</td><td class="num">25.0</td><td class="num">124%</td><td class="num">5.42</td><td class="num">5.53</td><td class="num">102%</td></tr>
+          <tr><td translate="no">Mistral 7B v0.3</td><td class="num">10.3</td><td class="num">14.0</td><td class="num">135%</td><td class="num">3.23</td><td class="num">3.29</td><td class="num">102%</td></tr>
+          <tr><td translate="no">Qwen2.5-Coder 7B</td><td class="num">11.5</td><td class="num">15.5</td><td class="num">135%</td><td class="num">3.23</td><td class="num">3.25</td><td class="num">101%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li data-i18n="6903bb2e"><strong>Prefill</strong> is at or above llama.cpp on all 12 models (101 to 184%). <strong>Generation</strong> is within 91 to 109% of llama.cpp, so it is close but not ahead.</li>
+      <li data-i18n="1c717d01">The weights of the Q4_K, Q6_K, Q8_0 and Q5_0 formats are repacked into interleaved rows when the model loads. The earlier table on this page, with 66% and 69% prefill for the 1.5B class, is replaced by this one.</li>
+      <li data-i18n="459bd971">The measuring laptop throttles when hot: the llama.cpp baseline itself fell from about 82/28 tok/s (prefill/generation, Qwen 0.5B) cold to about 57/19 hot. That is why every comparison is interleaved and run cold.</li>
+      <li data-i18n="4fd3163a">Not measured: Ollama's own overhead, ARM64 speed, any CPU other than this one (no AVX-VNNI or AVX-512 here), long contexts (the prompt is about 560 tokens), and, beyond a small sample, the quality of the repacked Q8_0 and Q5_0 paths against llama.cpp. Phi-3.5 mini is supported but is not in this table: the measurements of its Q5_K path were too noisy to publish.</li>
+    </ul>
+
+    <h3 data-i18n="ec425b2a">GPU (own engine, wgpu)</h3>
+    <p data-i18n="46ca552d">On an NVIDIA GeForce 940MX (4 GiB, Vulkan) with Qwen 2.5 0.5B Q4_K_M, the own engine reached 202 tok/s of prefill against 167 tok/s for the llama.cpp Vulkan build (121%), and 22.1 tok/s of generation against 24.4 (91%): medians of 3 interleaved rounds after a 60 second rest. It is one GPU and one model, so treat it as indicative.</p>
+
+    <h3 data-i18n="a41d1cd7">Quality validation</h3>
+    <p data-i18n="a602bc7c">The own engine is validated against llama.cpp (b12606), not just by checking that the text looks right:</p>
+    <ul>
+      <li data-i18n="a065af59"><strong>Token ids:</strong> tokenization identical to llama.cpp's on 11 of 11 tricky texts, and the ids of rendered chat prompts identical on 3 of 3 conversations, for each supported family. Comparing ids catches errors that comparing text hides.</li>
+      <li data-i18n="193fddc5"><strong>Logits against an unquantized F16 reference:</strong> maximum log-probability difference 0.0006 to 0.0021 on Qwen3 0.6B and 0.0027 to 0.0057 on Gemma 3 1B (0.0072 on a 613-token text), with an identical top-10. This proves the architecture.</li>
+      <li data-i18n="2c30883e"><strong>Quantized models:</strong> the direct difference between engines is larger, typically 0.03 to 0.1 mean log-probability, mostly noise from int8 activation quantization shared by both engines. A planted bug (sliding window disabled) was caught by the long-text test, which is how the tests were checked to have teeth.</li>
+      <li data-i18n="e440b0eb">A test suite compares every kernel with a float reference and checks that batched prefill is bit-identical to token-by-token processing.</li>
+    </ul>
+    <div data-i18n="b3ec91f7" class="note"><strong>Known caveats:</strong> Mistral 7B and Phi-3 were checked only on quantized files. Phi-4-mini quantized shows a larger gap (mean 0.08 to 0.25, max 0.72) and has no F16 control. For Qwen3 4B, numbers-only text differed by 0.65 on average (0.24 with float activations), so its quality on numeric text on the own engine is <em>not proven</em>. BF16 weights differ from llama.cpp by 0.02 to 0.066, worse than F16; the likely cause (llama.cpp rounding activations to BF16) was not proven by experiment.</div>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <h2 data-i18n="1ee04b9f">Security and privacy</h2>
+    <div class="grid">
+      <div class="card">
+        <h3 data-i18n="f7c74c79">Loopback only</h3>
+        <p data-i18n="e0977003">The server listens on <code>127.0.0.1</code> only. Each start creates a random session token, sent in the URL fragment and as an <code>X-Buriti-Token</code> header. The <code>Host</code> header is checked to block DNS-rebinding attacks.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="1bb98137">Verified downloads</h3>
+        <p data-i18n="de3912cf">Models and the llama.cpp engine are accepted only if the <strong>SHA-256</strong> matches: the catalog hash for models, the release <code>digest</code> for the engine. Archives are extracted without running anything; zip-slip is blocked.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="e4426790">Encrypted history</h3>
+        <p data-i18n="68a60d92">Chats are encrypted with ChaCha20-Poly1305. The key lives in your user profile, not beside the files. This stops casual opening or copying of the folder; it does <strong>not</strong> protect against someone who already controls your user session.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="2bed99c8">API key for <code>/v1</code></h3>
+        <p data-i18n="da3c411b">Compared in constant time, plus a loopback <code>Host</code> check and no CORS headers. Any program of yours that can read the key file can use the model (it spends CPU; it cannot read files or run anything).</p>
+      </div>
+    </div>
+    <ul>
+      <li data-i18n="88127799">The engine binary path can only be changed with <code>BURITI_ENGINE</code>, not from the web UI.</li>
+      <li data-i18n="55d713ca">Model files are untrusted input: the GGUF parser checks bounds everywhere.</li>
+      <li data-i18n="5e361dd1">Text you type is never interpreted as a special token, so chat delimiters cannot be injected.</li>
+      <li data-i18n="a43faabf"><strong>No telemetry.</strong> The network is used only when you click a download. This project site makes no external requests either: no analytics, no CDN, no web fonts.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="languages">
+  <div class="wrap">
+    <h2 data-i18n="db07be18">Languages</h2>
+    <p data-i18n="dc4e9efc">The interface is available in <strong>34 languages</strong>; a missing key falls back to English. The translations are <strong>AI-generated and need review by native speakers</strong>. The least certain are Yoruba, Amharic, Oromo, Igbo, Shona, Hausa, Zulu, Khmer, Papiamento and Haitian Creole. Long per-model catalog notes exist in English, Portuguese and Spanish and fall back to English elsewhere. A native-speaker review is one of the most useful contributions you can make.</p>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <h2 data-i18n="78c2424e">Roadmap and limitations</h2>
+    <h3 data-i18n="8f99072d">Limitations today</h3>
+    <ul>
+      <li data-i18n="59cb1486">Tested mainly on <strong>one Windows 10 machine</strong>. Linux and macOS are untested, including the <code>.tar.gz</code> engine download and extraction.</li>
+      <li data-i18n="13d0fec5">GPU (the Vulkan build of llama.cpp) has not been tested on real hardware.</li>
+      <li data-i18n="43250925">No pre-built binaries, installer or code signing yet.</li>
+      <li data-i18n="d07e5029">The own engine is CPU only. On ARM64 the NEON kernels are validated by emulation, cross-compilation and a self-test (no ARM machine was available), so their speed is unmeasured.</li>
+    </ul>
+    <h3 data-i18n="9cbe42aa">Planned</h3>
+    <ul>
+      <li data-i18n="1d985d98">Prefill speed for 1B to 3B models: kernels with fewer instructions per multiply-accumulate, AVX-VNNI, an LTO release build and re-measuring Llama 3.2 3B.</li>
+      <li data-i18n="52a7d453">NEON: measure on real ARM (Apple Silicon, Raspberry Pi 5); use <code>sdot</code>.</li>
+      <li data-i18n="07310d8b">More architectures (Gemma 2, larger Gemma 3, Mistral Nemo/Small) and remaining quantizations (<code>Q2_K</code>, <code>Q3_K</code>, <code>Q8_K</code>, <code>IQ*</code>).</li>
+      <li data-i18n="69887803">API: embeddings, tool calling, parallel requests, <code>usage</code> and <code>logprobs</code>; test real editor plugins end to end.</li>
+      <li data-i18n="3639d5b2">Distribution: CI-built binaries (MSVC on Windows), optional master password or OS keystore for the history key, an updatable catalog.</li>
+      <li data-i18n="92d4b703">GPU in the own engine via <code>wgpu</code> (Vulkan/Metal/DX12) and an installer.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="contributing">
+  <div class="wrap">
+    <h2 data-i18n="2d82a4b2">Contributing</h2>
+    <ul>
+      <li data-i18n="4d8d0183">Record each design decision in <code>docs/DECISIONS.md</code> with what was measured and what was <strong>not</strong> covered.</li>
+      <li data-i18n="ea8b457a">UI text goes in <code>web/i18n*.js</code> in <strong>all</strong> 34 languages, with placeholders such as <code>{threads}</code> kept intact.</li>
+      <li data-i18n="832a827f">Write kernel tests against a float reference, and plant a bug on purpose to confirm a new test fails.</li>
+      <li data-i18n="a8153c25">Validate new architectures by token ids and logits against llama.cpp (an F16 file should match to about 0.003), not by eyeballing output.</li>
+      <li data-i18n="d1cdf3c0">When measuring speed, interleave runs with llama.cpp, run cold, repeat 3 or more times and report the condition; do not call noise a gain.</li>
+      <li data-i18n="89ee24d6">Treat third-party code and binaries as untrusted: review before running anything.</li>
+    </ul>
+    <p data-i18n="2e744d82">Run the tests with <code>cargo test</code> (30 unit tests plus 7 ignored diagnostics). Issues, test reports from Linux, macOS and ARM machines, and translation reviews are all welcome on the <a href="https://github.com/brunoPetrim/buriti-public">GitHub repository</a>.</p>
+  </div>
+</section>
+
+<section id="license">
+  <div class="wrap">
+    <h2 data-i18n="3229609e">License</h2>
+    <p data-i18n="67a9b283">Buriti is licensed under the <a href="https://polyformproject.org/licenses/noncommercial/1.0.0">PolyForm Noncommercial License 1.0.0</a>. It is free for noncommercial use: personal use, research, experiments, hobby projects, study, and use by charities, educational institutions, public research, public safety or health, environmental and government organizations. Commercial use needs separate written permission from the licensor.</p>
+    <p data-i18n="0bf5e60c">This is a source-available license, not an OSI-approved open-source license, because it does not allow commercial use. The summary above is not legal advice: the license text is what counts.</p>
+    <p data-i18n="f521592e">Models have their own licenses, independent of Buriti's, and Buriti's license does not change them. Some require attribution, restrict certain uses or forbid commercial use. Read the full terms on each model's card before using it commercially.</p>
+    <p data-i18n="b655d40b">Dependencies: on 2026-11-23 the declared license of each of the 254 Rust crates the project depends on was checked, and all are permissive (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0 or similar); this is not a legal audit. llama.cpp (MIT license) is downloaded by the app on request and is not bundled.</p>
+    <p data-i18n="656c90be">Commercial licensing: Petrim Tecnologia da Informação (<a href="https://petrim.com.br">petrim.com.br</a>, <a href="mailto:contato@petrim.com.br">contato@petrim.com.br</a>).</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p data-i18n="b34cd2b0">Buriti builds on the ideas and file formats of <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a> and the GGUF format, and its engine is checked against llama.cpp.</p>
+    <p data-i18n="c5bcc23b"><strong>About the buriti</strong></p>
+    <p data-i18n="26d4f982">In the heart of the Cerrado, where the sun warms the earth and the horizon seems endless, the buriti stands as the silent guardian of the waters. <strong>Where there is buriti, there is water</strong>, an ancient promise that guides travelers, animals and generations along the veredas.</p>
+    <p data-i18n="af772d24">Its roots embrace the moist soil and protect the springs that give birth to rivers. Between the deep green of its fan-shaped leaves and the golden glow of its fruits, the buriti turns the landscape into shelter, food and living memory of the sertão.</p>
+    <p data-i18n="2b83bf18">Each vereda is a breath of freshness in the middle of the drought, a sacred meeting of earth, wind and running water. Caring for the buriti is caring for the source that keeps the Cerrado alive and pulsing.</p>
+    <p data-i18n="90e5bac9">License: <a href="#license">PolyForm Noncommercial 1.0.0</a> (source-available, free for noncommercial use). Copyright 2026 Petrim Tecnologia da Informação.</p>
+    <p data-i18n="2d202e52"><a href="https://github.com/brunoPetrim/buriti-public">github.com/brunoPetrim/buriti-public</a> &middot; <a href="#top">back to top</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

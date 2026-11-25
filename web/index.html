@@ -1,0 +1,1207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buriti</title>
+<link rel="icon" href="/favicon.ico?v=2" type="image/x-icon" sizes="16x16 32x32 48x48">
+<link rel="icon" href="/images/buriti_icon.png?v=2" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="/images/buriti_icon.png">
+<script>try { if (localStorage.getItem("buriti-theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch (e) {}</script>
+<style>
+  :root { --bg:#faf8f3; --fg:#1d2420; --muted:#5c6661; --field:#7d8681; --card:#fff; --line:#e3ded2; --accent:#2f7d4f; --accent-fg:#fff; --user:#e8f1ea; --err:#b3261e; --warn:#fff6e0; --warn-line:#e8cf8a; }
+  /* Tema escuro só quando o usuário escolhe (botão no topo); o padrão é sempre o claro. */
+  :root[data-theme="dark"] { --bg:#141916; --fg:#e8ece9; --muted:#97a39c; --field:#6f7c74; --card:#1c231f; --line:#2c352f; --accent:#4cae76; --accent-fg:#0b120d; --user:#223026; --err:#f2877f; --warn:#2c2812; --warn-line:#6b5d1f; color-scheme:dark; }
+  .sr { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0; }
+  .skip { position:absolute; inset-inline-start:8px; top:-60px; z-index:100; background:var(--accent); color:var(--accent-fg); padding:8px 14px; border-radius:6px; text-decoration:none; }
+  .skip:focus { top:8px; }
+  :focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+  main:focus { outline:none; }
+  .brand { margin:0; display:flex; align-items:center; }
+  .brand img { height:40px; width:auto; display:block; }
+  * { box-sizing:border-box; }
+  html { height:100%; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,"Noto Sans",sans-serif; display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }
+  /* Só o Chat tem altura fixa (a lista de mensagens rola por dentro); nas outras abas rola a própria janela */
+  body.chatmode { height:100vh; height:100dvh; overflow:hidden; }
+  body.chatmode main { min-height:0; overflow:hidden; }
+  header { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { margin:0; font-size:1.1rem; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; }
+  nav button { background:none; border:0; color:var(--muted); padding:6px 12px; border-radius:6px; cursor:pointer; font:inherit; }
+  nav button.on { background:var(--card); color:var(--fg); border:1px solid var(--line); }
+  .grow { margin-inline-start:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #pillbox { position:relative; display:inline-block; }
+  #pill { display:inline-block; font-size:.85rem; padding:3px 10px; border-radius:99px; border:1px solid var(--line); background:var(--card); }
+  /* estado do motor: verde = pronto; aviso = carregando/parado/sem conexão; vermelho = erro. O texto do selo diz o estado (a cor não é a única pista). */
+  #pill.ok { background:var(--accent); color:var(--accent-fg); border-color:var(--accent); }
+  #pill.warn { background:var(--warn); color:var(--fg); border-color:var(--warn-line); }
+  #pill.bad { background:var(--card); color:var(--err); border-color:var(--err); }
+  #pill[tabindex]:focus-visible { outline:2px solid var(--fg); outline-offset:2px; }
+  #pill-tip { display:none; position:absolute; top:calc(100% + 6px); inset-inline-end:0; z-index:20; width:max-content; max-width:min(420px, 90vw); padding:6px 10px; border-radius:8px; background:var(--card); color:var(--fg); border:1px solid var(--line); box-shadow:0 4px 14px rgba(0,0,0,.18); font-size:.8rem; line-height:1.35; text-align:start; }
+  #pillbox:hover #pill-tip, #pill:focus ~ #pill-tip { display:block; }
+  #pillbox.notip #pill-tip { display:none !important; }
+  main { flex:1; width:100%; max-width:1100px; margin:0 auto; padding:16px; }
+  section { display:none; } section.on { display:block; }
+  #s-chat.on { display:flex; gap:16px; height:100%; overflow:hidden; }
+  #side { width:250px; flex:none; display:flex; flex-direction:column; min-height:0; border-inline-end:1px solid var(--line); padding-inline-end:12px; }
+  #chatlist { overflow:auto; flex:1; margin-top:8px; }
+  .item { display:flex; align-items:center; gap:4px; padding:6px 8px; border-radius:8px; cursor:pointer; }
+  .item:hover, .item.on { background:var(--card); }
+  .item .open { flex:1; min-width:0; text-align:start; background:none; border:0; color:inherit; padding:2px 0; cursor:pointer; font:inherit; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item button { background:none; border:0; color:var(--muted); cursor:pointer; font:inherit; }
+  #chatcol { flex:1; min-width:0; display:flex; flex-direction:column; min-height:0; }
+  #scroll { flex:1; overflow:auto; position:relative; } /* relative: contém os .sr (absolute, 1px) das mensagens; sem isso eles estendem o overflow da página e surge uma 2a barra */
+  .modelbar { align-self:flex-start; max-width:100%; display:inline-flex; align-items:center; gap:8px; margin:0 0 8px; padding:5px 12px; border:1px solid var(--field); border-radius:999px; background:transparent; color:inherit; font:inherit; font-size:13px; cursor:pointer; }
+  .modelbar:hover { border-color:var(--accent,currentColor); }
+  .modelbar .mn { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .modelbar.none { border-style:dashed; opacity:.85; }
+  .langhint { display:flex; align-items:flex-start; gap:8px; margin:0 0 8px; padding:7px 10px; border:1px solid var(--field); border-radius:8px; font-size:.85rem; }
+  .langhint[hidden] { display:none; }
+  .langhint .lt { flex:1; }
+  .langhint button { flex:none; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; padding:0; border:1px solid transparent; border-radius:6px; background:transparent; color:inherit; cursor:pointer; }
+  .langhint button:hover { border-color:var(--field); }
+  .msg { padding:10px 14px; border-radius:10px; margin:8px 0; white-space:pre-wrap; border:1px solid var(--line); background:var(--card); }
+  .msg.user { background:var(--user); }
+  .msg.err { color:var(--err); }
+  #chatcol { position:relative; }
+  #chat-form { display:flex; flex-direction:column; gap:6px; padding-top:12px; }
+  .inputrow { display:flex; gap:8px; }
+  #attach-btn, #img-btn { flex:none; padding:8px 12px; display:inline-flex; align-items:center; justify-content:center; }
+  #attach-btn svg, #img-btn svg { display:block; flex:none; }
+  #img-hint { margin:0; } #img-hint[hidden] { display:none; }
+  /* anexos: chips acima do campo (lista com rolagem própria, para não encolher o chat) */
+  #attach-list, .atts { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px; }
+  #attach-list { max-height:132px; overflow:auto; }
+  #attach-list:empty { display:none; }
+  .att { display:inline-flex; align-items:center; gap:8px; max-width:100%; min-width:0; padding:4px 6px; border:1px solid var(--field); border-radius:10px; background:var(--card); color:var(--fg); font-size:.85rem; line-height:1.3; white-space:normal; }
+  .att.gone, .att.unsupported { border-style:dashed; }
+  .att .ico { width:36px; height:36px; flex:none; display:flex; align-items:center; justify-content:center; background:var(--bg); border-radius:6px; }
+  .ic { display:inline-flex; align-items:center; justify-content:center; flex:none; line-height:0; }
+  .ic svg { display:block; }
+  .att img.thumb { width:36px; height:36px; flex:none; object-fit:cover; border-radius:6px; }
+  .att .txt { display:flex; flex-direction:column; min-width:0; }
+  .att .nm { font-weight:600; max-width:22ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .att .meta { color:var(--muted); font-size:.78rem; overflow-wrap:anywhere; }
+  .att button.rm { flex:none; background:none; border:1px solid transparent; border-radius:6px; color:var(--fg); cursor:pointer; font:inherit; padding:2px 8px; }
+  .att button.rm:hover { border-color:var(--field); }
+  .msg .atts { margin-top:8px; white-space:normal; }
+  #attach-note { margin:0; color:var(--err); } #attach-note:empty { display:none; }
+  #attach-warn { margin:0; padding:8px 12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.9rem; } #attach-warn[hidden], #attach-meter[hidden], #dropov[hidden] { display:none; }
+  #attach-meter { margin:0; display:flex; gap:8px; align-items:center; }
+  #dropov { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.45); pointer-events:none; padding:16px; }
+  #dropov .box { background:var(--card); color:var(--fg); border:3px dashed var(--accent); border-radius:16px; padding:28px 32px; max-width:520px; text-align:center; }
+  #dropov .box strong { display:block; font-size:1.2rem; margin-bottom:6px; }
+  textarea, input[type=number], input[type=text], select { font:inherit; color:var(--fg); background:var(--card); border:1px solid var(--field); border-radius:8px; padding:8px 10px; }
+  input[type=text] { width:100%; }
+  textarea { flex:1; resize:none; }
+  button.btn { background:var(--accent); color:var(--accent-fg); border:0; border-radius:8px; padding:8px 16px; cursor:pointer; font:inherit; }
+  button.btn.sec { background:var(--card); color:var(--fg); border:1px solid var(--field); }
+  button.btn.sm { padding:4px 10px; font-size:.9rem; }
+  button:disabled, button[aria-disabled=true] { opacity:.5; cursor:not-allowed; }
+  label { display:block; margin:14px 0 4px; font-weight:600; }
+  .hint { color:var(--muted); font-size:.85rem; margin:2px 0 0; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin-top:14px; }
+  .card.warn { background:var(--warn); border-color:var(--warn-line); }
+  .card ul { margin:6px 0 0; padding-inline-start:1.2em; } .card li { margin:6px 0; }
+  .step { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0; }
+  .step .mark { width:1.4em; text-align:center; font-weight:700; color:var(--accent); }
+  .badge { font-size:.75rem; background:var(--accent); color:var(--accent-fg); padding:1px 8px; border-radius:99px; }
+  .cat-title { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { display:inline-flex; gap:4px; align-items:baseline; font-size:.78rem; line-height:1.4; padding:1px 9px; border-radius:99px; border:1px solid var(--line); background:var(--bg); color:var(--fg); max-width:100%; overflow-wrap:anywhere; }
+  .chip .k { color:var(--muted); }
+  .chip.warn { background:var(--warn); border-color:var(--warn-line); }
+  .chip.ok { border-color:var(--accent); }
+  .facts { margin-top:8px; display:grid; gap:4px; font-size:.9rem; }
+  .facts div { overflow-wrap:anywhere; }
+  .facts .k { font-weight:600; margin-inline-end:6px; }
+  .facts .avoid .k { color:var(--err); }
+  .kv { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin-top:8px; }
+  .kv strong { min-width:7em; }
+  .kv code { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 8px; direction:ltr; text-align:start; }
+  pre.code { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 12px; overflow:auto; font:.82rem/1.45 ui-monospace,monospace; direction:ltr; text-align:start; white-space:pre; margin:6px 0; }
+  .api h3 { margin:16px 0 4px; font-size:1rem; }
+  .api ul { margin:6px 0 0; padding-inline-start:1.2em; } .api li { margin:6px 0; }
+  .api a { color:var(--accent); overflow-wrap:anywhere; }
+  .ep { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; margin:6px 0; }
+  progress { width:160px; height:10px; }
+  ol.steps, ul.steps { padding-inline-start:1.4em; } ol.steps li, ul.steps li { margin:10px 0; }
+  #s-help h3 { margin:22px 0 4px; font-size:1.05rem; }
+  code { font-family:ui-monospace,monospace; font-size:.85rem; word-break:break-all; }
+  dialog { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:12px; width:min(640px,94vw); max-height:80vh; padding:0; }
+  dialog::backdrop { background:rgba(0,0,0,.45); }
+  .dlg-h { display:flex; gap:8px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }
+  .dlg-h code { flex:1; direction:ltr; text-align:start; }
+  #fslist { overflow:auto; max-height:55vh; padding:6px; }
+  .fsrow { display:flex; gap:8px; width:100%; padding:6px 10px; border-radius:6px; cursor:pointer; direction:ltr; text-align:start; background:none; border:0; color:inherit; font:inherit; }
+  .fsrow:hover { background:var(--bg); } .fsrow .sz { margin-inline-start:auto; color:var(--muted); font-size:.85rem; }
+  @media (max-width:700px) { #s-chat.on { flex-direction:column; } #side { width:100%; max-height:130px; border:0; } }
+</style>
+</head>
+<body class="chatmode">
+<a class="skip" href="#main" data-i18n="skip_main"></a>
+<header>
+  <h1 class="brand"><img id="logo" src="/images/buriti_logo.png" alt="Buriti"></h1>
+  <nav data-i18n-aria="nav_main">
+    <button id="t-chat" class="on" aria-current="true" data-i18n="tab_chat"></button>
+    <button id="t-models" data-i18n="tab_models"></button>
+    <button id="t-cfg" data-i18n="tab_cfg"></button>
+    <button id="t-api" data-i18n="tab_api"></button>
+    <button id="t-help" data-i18n="tab_help"></button>
+  </nav>
+  <div class="grow">
+    <button id="theme" class="btn sec sm" type="button"></button>
+    <select id="lang" aria-label="Language"></select>
+    <span id="pillbox" class="notip"><span id="pill" role="status">…</span><span id="pill-tip" role="tooltip"></span></span>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+  <div id="announce" class="sr" role="status" aria-live="polite"></div>
+  <!-- CHAT -->
+  <section id="s-chat" class="on" aria-labelledby="t-chat">
+    <h2 class="sr" data-i18n="tab_chat"></h2>
+    <aside id="side">
+      <button class="btn" id="newchat" data-i18n="hist_new"></button>
+      <strong style="margin-top:12px" data-i18n="hist_title"></strong>
+      <div id="chatlist"></div>
+    </aside>
+    <div id="chatcol">
+      <button type="button" id="modelbar" class="modelbar"></button>
+      <div id="langhint" class="langhint" hidden><span id="langhint-t" class="lt"></span><button type="button" id="langhint-x"></button></div>
+      <div id="scroll">
+        <div id="setup"></div>
+        <div id="log" role="log" aria-live="polite" aria-relevant="additions" data-i18n-aria="chat_log"></div>
+      </div>
+      <form id="chat-form">
+        <ul id="attach-list" data-i18n-aria="att_list"></ul>
+        <p id="attach-note"></p>
+        <p id="img-hint" class="hint" hidden></p>
+        <div id="attach-warn" class="card warn" hidden><span id="attach-warn-t"></span><button type="button" class="btn sec sm" id="attach-trunc" data-i18n="att_truncate"></button></div>
+        <div id="attach-meter" class="hint" hidden><progress id="attach-prog" max="100" value="0" aria-hidden="true"></progress><span id="attach-meter-t"></span></div>
+        <div class="inputrow">
+          <button class="btn sec" id="attach-btn" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 11.5 11.6 19.9a5.2 5.2 0 0 1-7.4-7.4l9-9a3.4 3.4 0 0 1 4.8 4.8l-9 9a1.6 1.6 0 0 1-2.3-2.3l8.2-8.2"/></svg></button>
+          <button class="btn sec" id="img-btn" type="button"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M3 17l5-5 4 4 3-3 6 6"/></svg></button>
+          <textarea id="input" rows="2" data-i18n-aria="chat_label"></textarea>
+          <button class="btn" id="send" type="submit" data-i18n="send"></button>
+        </div>
+        <input type="file" id="file-input" multiple hidden tabindex="-1">
+        <input type="file" id="img-input" accept="image/*" hidden tabindex="-1">
+      </form>
+      <div id="dropov" hidden aria-hidden="true"><div class="box"><strong data-i18n="att_drop_title"></strong><span data-i18n="att_drop_note"></span></div></div>
+    </div>
+  </section>
+
+  <!-- MODELOS -->
+  <section id="s-models" aria-labelledby="t-models">
+    <h2 data-i18n="cat_title"></h2>
+    <p class="hint" data-i18n="cat_note"></p>
+    <p class="hint" data-i18n="cat_license_note"></p>
+    <div id="catalog"></div>
+
+    <div class="card">
+      <div><strong data-i18n="cur_model"></strong>: <code id="curmodel">—</code></div>
+      <div class="row">
+        <button class="btn sec" type="button" id="browse1" data-i18n="browse_btn"></button>
+      </div>
+      <p class="hint" data-i18n="browse_hint"></p>
+    </div>
+    <div id="pains-models"></div>
+  </section>
+
+  <!-- CONFIGURAÇÕES -->
+  <section id="s-cfg" aria-labelledby="t-cfg">
+    <h2 class="sr" data-i18n="tab_cfg"></h2>
+    <div class="card"><strong data-i18n="sys_title"></strong><div id="sys" class="hint">…</div></div>
+
+    <label for="enginekind" data-i18n="engine_kind_label"></label>
+    <select id="enginekind">
+      <option value="llama" data-i18n="engine_llama"></option>
+      <option value="native" data-i18n="engine_native"></option>
+    </select>
+    <p class="hint" data-i18n="native_hint"></p>
+    <div id="procbox" hidden>
+      <label for="processor" data-i18n="proc_label"></label>
+      <select id="processor">
+        <option value="auto" data-i18n="proc_auto"></option>
+        <option value="cpu" data-i18n="proc_cpu"></option>
+        <option value="gpu" data-i18n="proc_gpu"></option>
+      </select>
+      <div id="gpudevbox">
+        <label for="gpudev" data-i18n="gpudev_label"></label>
+        <select id="gpudev"></select>
+      </div>
+      <p class="hint" data-i18n="proc_hint"></p>
+    </div>
+
+    <label for="model" data-i18n="model"></label>
+    <select id="model"></select>
+    <p class="hint"><span data-i18n="model_dir"></span> <code id="modeldir"></code></p>
+
+    <label for="modelpath" data-i18n="path_label"></label>
+    <div class="row" style="margin-top:0">
+      <input id="modelpath" type="text" dir="ltr" placeholder="C:\Models\qwen.gguf   |   /home/user/qwen.gguf" spellcheck="false" style="flex:1">
+      <button class="btn sec" type="button" id="browse2" data-i18n="browse_btn"></button>
+    </div>
+    <p class="hint" data-i18n="path_hint"></p>
+
+    <div id="gpulayersbox">
+      <label for="gpu"><span data-i18n="gpu_label"></span>: <span id="gpuv">0</span></label>
+      <input id="gpu" type="range" min="0" max="99" value="0">
+      <p class="hint" data-i18n="gpu_hint"></p>
+    </div>
+
+    <label for="threads" data-i18n="threads_label"></label>
+    <input id="threads" type="number" min="0" max="256">
+    <label for="ctx" data-i18n="ctx_label"></label>
+    <input id="ctx" type="number" min="256" max="32768" step="256">
+    <label for="port" data-i18n="port_label"></label>
+    <input id="port" type="number" min="1024" max="65535">
+
+    <div class="row">
+      <button class="btn" id="save" data-i18n="save"></button>
+      <button class="btn sec" id="start" data-i18n="start"></button>
+      <button class="btn sec" id="stop" data-i18n="stop"></button>
+    </div>
+    <p class="hint" id="cfgmsg"></p>
+  </section>
+
+  <!-- API / BURITI CODE -->
+  <section id="s-api" class="api" aria-labelledby="t-api">
+    <h2 data-i18n="api_title"></h2>
+    <p id="api-what"></p>
+    <div class="card">
+      <div class="kv"><strong data-i18n="api_base"></strong><code id="api-base"></code><button class="btn sec sm" type="button" id="api-copy-base"></button></div>
+      <div class="kv"><strong data-i18n="api_key"></strong><code id="api-key"></code>
+        <button class="btn sec sm" type="button" id="api-toggle"></button>
+        <button class="btn sec sm" type="button" id="api-copy-key"></button>
+        <button class="btn sec sm" type="button" id="api-regen"></button></div>
+      <p class="hint" data-i18n="api_key_note"></p>
+      <p class="hint" id="api-key-err" style="color:var(--err)"></p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0" data-i18n="api_ep_title"></h3>
+      <div class="ep"><code>GET /v1/models</code><span data-i18n="api_ep_models"></span></div>
+      <div class="ep"><code>POST /v1/chat/completions</code><span data-i18n="api_ep_chat"></span></div>
+      <div class="ep"><code>POST /v1/completions</code><span data-i18n="api_ep_comp"></span></div>
+      <div class="ep"><code>Authorization: Bearer &lt;key&gt;</code><span data-i18n="api_auth"></span></div>
+      <h3 data-i18n="api_ex_chat"></h3>
+      <pre class="code" id="api-curl-chat"></pre>
+      <h3 data-i18n="api_ex_fim"></h3>
+      <pre class="code" id="api-curl-fim"></pre>
+      <p class="hint" data-i18n="api_note_ready"></p>
+      <p class="hint" data-i18n="api_note_queue"></p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0" data-i18n="api_ide_title"></h3>
+      <h3>VS Code + JetBrains: Continue</h3>
+      <p data-i18n="api_cont_desc"></p>
+      <p class="hint"><span data-i18n="api_cont_path"></span> <code>~/.continue/config.yaml</code> (Windows: <code>%USERPROFILE%\.continue\config.yaml</code>)</p>
+      <pre class="code" id="api-cont-yaml"></pre>
+      <p class="hint"><a href="https://docs.continue.dev/customize/model-providers/top-level/openai" target="_blank" rel="noopener">docs.continue.dev</a> ·
+        <a href="https://docs.continue.dev/reference" target="_blank" rel="noopener">config.yaml</a> ·
+        <a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue" target="_blank" rel="noopener">VS Code: Continue</a> ·
+        <a href="https://plugins.jetbrains.com/plugin/22707-continue" target="_blank" rel="noopener">JetBrains: Continue</a></p>
+      <h3>JetBrains: AI Assistant</h3>
+      <p data-i18n="api_jb_ai"></p>
+      <p class="hint"><a href="https://www.jetbrains.com/help/ai-assistant/use-custom-models.html" target="_blank" rel="noopener">jetbrains.com/help/ai-assistant/use-custom-models.html</a></p>
+      <h3>JetBrains: ProxyAI</h3>
+      <p data-i18n="api_jb_proxy"></p>
+      <p class="hint"><a href="https://plugins.jetbrains.com/plugin/21056-proxyai" target="_blank" rel="noopener">plugins.jetbrains.com/plugin/21056-proxyai</a></p>
+      <h3>VS Code: Cline</h3>
+      <p data-i18n="api_cline_desc"></p>
+      <p class="hint"><a href="https://docs.cline.bot/provider-config/openai-compatible" target="_blank" rel="noopener">docs.cline.bot/provider-config/openai-compatible</a> ·
+        <a href="https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev" target="_blank" rel="noopener">VS Code: Cline</a></p>
+      <h3 data-i18n="api_models_title"></h3>
+      <p data-i18n="api_models_adv"></p>
+    </div>
+    <div class="card warn">
+      <h3 style="margin-top:0" data-i18n="api_lim_title"></h3>
+      <ul>
+        <li data-i18n="api_lim_embed"></li><li data-i18n="api_lim_tools"></li><li data-i18n="api_lim_conc"></li>
+        <li data-i18n="api_lim_one"></li><li data-i18n="api_lim_latency"></li><li data-i18n="api_lim_fim"></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- AJUDA -->
+  <section id="s-help" aria-labelledby="t-help">
+    <h2 data-i18n="help_buriti_title"></h2>
+    <p data-i18n="help_buriti_p1"></p>
+    <p data-i18n="help_buriti_p2"></p>
+    <p data-i18n="help_buriti_p3"></p>
+    <h2 data-i18n="help_title"></h2>
+    <ol class="steps">
+      <li data-i18n="help1"></li><li data-i18n="help2"></li><li data-i18n="help3"></li>
+      <li data-i18n="help4"></li><li data-i18n="help5"></li>
+    </ol>
+    <h3 data-i18n="help_feat_title"></h3>
+    <ul class="steps">
+      <li data-i18n="help_f_engines"></li><li data-i18n="help_f_model"></li><li data-i18n="help_f_attach"></li>
+      <li data-i18n="help_f_limits"></li><li data-i18n="help_f_images"></li><li data-i18n="help_f_code"></li><li data-i18n="help_f_license"></li>
+    </ul>
+    <div id="pains-help"></div>
+  </section>
+</main>
+
+<dialog id="dlg" data-i18n-aria="browse_btn">
+  <div class="dlg-h">
+    <button class="btn sec sm" id="fsup" type="button" data-i18n="browse_up"></button>
+    <code id="fspath"></code>
+    <button class="btn sec sm" id="fsclose" type="button" data-i18n="cancel"></button>
+  </div>
+  <div id="fslist"></div>
+</dialog>
+
+<script src="/i18n.js"></script>
+<script src="/i18n2.js"></script>
+<script src="/i18n3.js"></script>
+<script src="/i18n4.js"></script>
+<script src="/i18n5.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const ICONS = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  chip: '<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  code: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M10 12l-2 2.5 2 2.5M14 12l2 2.5-2 2.5"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M3 17l5-5 4 4 3-3 6 6"/>',
+  x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  warn: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+};
+// icone decorativo (sempre aria-hidden: o nome acessivel vem do texto ao lado ou do aria-label do botao)
+function ico(name, size = 18) {
+  const s = document.createElement("span");
+  s.className = "ic"; s.setAttribute("aria-hidden", "true");
+  s.innerHTML = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">' + (ICONS[name] || ICONS.file) + "</svg>";
+  return s;
+}
+function h(tag, props = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) { if (k === "class") e.className = v; else if (k.startsWith("on")) e[k] = v; else e.setAttribute(k, v); }
+  for (const k of kids.flat()) { if (k == null || k === false) continue; e.append(k.nodeType ? k : document.createTextNode(k)); }
+  return e;
+}
+const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k]);
+const fmtGB = (b) => (b / 1e9).toFixed(2) + " GB";
+const SERVER_MSGS = [
+  [/^Pasta inválida\.$/, "err_bad_folder"],
+  [/^O motor não está pronto\.$/, "err_engine_not_ready"],
+  [/^mensagens inválidas: ([\s\S]*)$/, "err_bad_messages"],
+  [/^mensagens vazias ou com papel inválido$/, "err_empty_messages"],
+  [/^Já está em andamento\.$/, "err_in_progress"],
+  [/^falha de rede: ([\s\S]*)$/, "err_network"],
+  [/^servidor respondeu erro: ([\s\S]*)$/, "err_server_error"],
+  [/^cancelado$/, "err_cancelled"],
+  [/^SHA-256 não confere \(esperado (\S+), obtido (\S+)\)\. Arquivo descartado\.$/, "err_sha"],
+  [/^falha ao consultar o GitHub: ([\s\S]*)$/, "err_github"],
+  [/^GitHub respondeu erro: ([\s\S]*)$/, "err_github_resp"],
+  [/^Nenhum release recente com '([^']*)' e hash SHA-256 foi encontrado\. Baixe manualmente em github\.com\/ggml-org\/llama\.cpp\/releases$/, "err_no_release"],
+  [/^URL de download inesperada; abortado\.$/, "err_bad_url"],
+  [/^Extraído, mas o llama-server não foi encontrado no pacote\.$/, "err_no_server_pkg"],
+  [/^backend inválido$/, "err_bad_backend"],
+  [/^Sem download automático para (\S+)\. Baixe manualmente\.$/, "err_no_auto_dl"],
+  [/^Motor não encontrado: ([\s\S]*)$/, "err_engine_missing"],
+  [/^Falha ao iniciar o motor: ([\s\S]*)$/, "err_engine_start"],
+  [/^O motor encerrou \(([^)]*)\)\. Veja engine\.log$/, "err_engine_exit"],
+  [/^motor respondeu (\d+): ([\s\S]*)$/, "err_engine_http"],
+  [/^Nome de modelo inválido \(use um arquivo \.gguf da pasta models\)\.$/, "err_model_name"],
+  [/^Caminho inválido: use o caminho completo de um arquivo \.gguf\.$/, "err_model_path"],
+  [/^Porta do motor deve ser >= 1024\.$/, "err_port_min"],
+  [/^Motor inválido \(use "llama" ou "native"\)\.$/, "err_engine_kind"],
+  [/^Calculando na GPU: ([\s\S]+)\.$/, "err_gpu_on"],
+  [/^O modelo não cabe na memória da GPU; calculando na CPU\.$/, "err_gpu_nofit"],
+  [/^GPU não usada \(([\s\S]+)\); calculando na CPU\.$/, "err_gpu_off"],
+  [/^Nenhum modelo selecionado\.$/, "err_no_model"],
+  [/^Modelo não encontrado: ([\s\S]*)$/, "err_model_missing"],
+  [/^O arquivo não é um GGUF válido: ([\s\S]*)$/, "err_not_gguf"],
+  [/^não foi possível abrir nenhuma porta local: ([\s\S]*)$/, "err_no_port"],
+  [/^não foi possível gravar a chave da API: ([\s\S]*)$/, "err_key_write"],
+  [/^id de conversa inválido$/, "err_chat_id"],
+  [/^falha ao criptografar$/, "err_encrypt"],
+  [/^arquivo de conversa inválido$/, "err_chat_file"],
+  [/^não foi possível decifrar \(chave diferente ou arquivo alterado\)$/, "err_decrypt"],
+  [/^não é um arquivo GGUF$/, "err_not_gguf_file"],
+  [/^versão de GGUF não suportada: (\S+)$/, "err_gguf_version"],
+  [/^não foi possível abrir o modelo: ([\s\S]*)$/, "err_open_model"],
+  [/^tokenizador '([^']*)' ainda não suportado \(só BPE gpt2\/Qwen\/Llama 3 e SentencePiece\)$/, "err_tokenizer"],
+  [/^template \[INST\] com tokens de texto \(Mistral v0\.1\/v0\.2, Llama 2\) ainda não suportado; use o llama\.cpp$/, "err_inst_template"],
+  [/^modelo SentencePiece da arquitetura '([^']*)' sem formato de chat reconhecido; use o llama\.cpp$/, "err_sp_arch"],
+  [/^pré-tokenizador '([^']*)' ainda não suportado \(só llama-bpe do Llama 3\.x\)$/, "err_pretok"],
+  [/^tensor (\S+): tipo de quantização (\d+) ainda não suportado pelo motor próprio$/, "err_quant"],
+  [/^O modelo ativo não aceita imagens\.$/, "err_img_novision"],
+  [/^Só é possível enviar \d+ imagem por pedido\.$/, "err_img_one"],
+  [/^(?:imagens inválidas|imagem sem|`grid` inválido|grade de fatias inválida|a grade \d|bloco de imagem|imagens só são aceitas)[\s\S]*$/, "err_img_invalid"],
+  [/^O arquivo é grande demais \(limite de (\d+) MB\)\.$/, "err_attach_big"],
+  [/^O arquivo está vazio\.$/, "err_attach_empty"],
+  [/^O arquivo não parece ser um PDF\.$/, "err_attach_notpdf"],
+  [/^O PDF não tem texto selecionável \(talvez seja digitalizado\); não há OCR nesta versão\.$/, "err_attach_nopdftext"],
+  [/^PDF indisponível nesta build\.$/, "err_attach_nopdf"],
+  [/^Não foi possível ler o PDF: ([\s\S]*)$/, "err_attach_pdf"],
+  [/^O PDF está protegido por senha ou criptografado; não é possível ler\.$/, "err_attach_encrypted"],
+  [/^A leitura do PDF demorou demais \(mais de (\d+) s\) e foi cancelada\.$/, "err_attach_timeout"],
+  [/^O leitor de PDF falhou ao processar este arquivo \(ele pode estar corrompido ou ser complexo demais\)\.$/, "err_attach_crash"],
+  [/^O PDF tem páginas demais \(limite de (\d+)\)\.$/, "err_attach_pages"],
+  [/^A mensagem é grande demais para o contexto configurado \(cerca de (\d+) tokens; o limite é (\d+)\)\. Remova ou reduza os anexos, ou aumente o contexto nas Configurações\.$/, "err_ctx_over"],
+  [/^template de chat do modelo \(arquitetura '([^']*)'\) não é um formato suportado; use o llama\.cpp$/, "err_chat_template"],
+];
+// Erros do servidor que chegam à tela (D83): o servidor manda um JSON {code, args, en}; o texto sai do idioma da interface pelo
+// `code` (uma chave err_*), com `args` em {0}, {1}...; um argumento que também é um erro com código é traduzido por dentro. Sem a
+// chave, aparece o texto em inglês `en` que veio do servidor. SERVER_MSGS (acima) é só a reserva para o que ainda não tem código:
+// mensagens antigas em português casadas por texto; o que não casar aparece como veio.
+function tm(m) {
+  const s = String(m == null ? "" : m).trim();
+  if (s.charAt(0) === "{") {
+    try {
+      const o = JSON.parse(s);
+      if (o && typeof o.code === "string" && Array.isArray(o.args)) {
+        const txt = (I18N[LANG] && I18N[LANG][o.code]) || I18N.en[o.code];
+        if (txt) return fmt(txt, o.args.map((a) => tm(a)));
+        if (typeof o.en === "string") return o.en;
+      }
+    } catch {}
+  }
+  for (const [re, key] of SERVER_MSGS) { const x = s.match(re); if (x) return fmt(t(key), x.slice(1)); }
+  return m;
+}
+
+
+// ---------- idioma
+function pickLang() {
+  try { const s = localStorage.getItem("buriti-lang"); if (s && I18N[s]) return s; } catch {}
+  for (const l of navigator.languages || [navigator.language]) {
+    const c = (l || "").toLowerCase().split("-")[0];
+    const code = c === "tl" ? "fil" : c;
+    if (I18N[code]) return code;
+  }
+  return "en";
+}
+let LANG = pickLang();
+const t = (k) => (I18N[LANG] && I18N[LANG][k]) || I18N.en[k] || k;
+$("lang").innerHTML = Object.keys(LANG_NAMES).map((c) => `<option value="${c}">${LANG_NAMES[c]}</option>`).join("");
+$("lang").onchange = () => { LANG = $("lang").value; try { localStorage.setItem("buriti-lang", LANG); } catch {} applyLang(); };
+
+// ---------- tema (claro por padrão; escolha lembrada no navegador)
+let THEME = "light";
+try { if (localStorage.getItem("buriti-theme") === "dark") THEME = "dark"; } catch {}
+function applyTheme() {
+  document.documentElement.dataset.theme = THEME;
+  $("logo").src = THEME === "dark" ? "/images/buriti_logo_dark_mode.png" : "/images/buriti_logo.png";
+  const label = t(THEME === "dark" ? "theme_light" : "theme_dark");
+  $("theme").replaceChildren(ico(THEME === "dark" ? "sun" : "moon", 18));
+  $("theme").title = label; $("theme").setAttribute("aria-label", label);
+}
+$("theme").onclick = () => { THEME = THEME === "dark" ? "light" : "dark"; try { localStorage.setItem("buriti-theme", THEME); } catch {} applyTheme(); };
+
+// ---------- estado
+let TOKEN = "", SETTINGS = {}, SYS = null, MODELS = [], CATALOG = [], DL = {}, CHATS = [], CUR = null;
+let lastStatus = null, engineState = "stopped", VISION = null; // VISION: {tile, per_tile, max_grid} do motor ativo, ou null (não enxerga imagens)
+const history = [];
+try {
+  const m = location.hash.match(/token=([0-9a-f]+)/);
+  if (m) { sessionStorage.setItem("buriti-token", m[1]); history_replace(); }
+  TOKEN = sessionStorage.getItem("buriti-token") || "";
+} catch {}
+function history_replace() { window.history.replaceState(null, "", location.pathname); }
+
+async function api(path, opts = {}) {
+  const r = await fetch("/api" + path, { ...opts, headers: { "Content-Type": "application/json", "X-Buriti-Token": TOKEN, ...(opts.headers || {}) } });
+  if (!r.ok) throw new Error((await r.text()) || r.statusText);
+  return r;
+}
+const post = (p, body) => api(p, { method: "POST", body: JSON.stringify(body || {}) });
+
+// ---------- abas
+function tab(name) {
+  document.body.classList.toggle("chatmode", name === "chat");
+  window.scrollTo(0, 0);
+  for (const n of ["chat", "models", "cfg", "api", "help"]) {
+    $("s-" + n).classList.toggle("on", n === name);
+    $("t-" + n).classList.toggle("on", n === name);
+    if (n === name) $("t-" + n).setAttribute("aria-current", "true"); else $("t-" + n).removeAttribute("aria-current");
+  }
+  document.title = "Buriti — " + $("t-" + name).textContent;
+}
+// aviso curto para leitores de tela (região role=status)
+function announce(msg) { const a = $("announce"); a.textContent = ""; setTimeout(() => (a.textContent = msg), 50); }
+for (const n of ["chat", "models", "cfg", "api", "help"]) $("t-" + n).onclick = () => tab(n);
+
+// ---------- "dores" claras em tela
+function renderPains(el) {
+  el.innerHTML = "";
+  if (!SYS) return;
+  const items = [fmt(t("pain_perf"), { threads: SYS.cpu_threads, ram: (SYS.ram_mb / 1024).toFixed(1) })];
+  if (SYS.windows) items.push(t("pain_smart"));
+  items.push(t("pain_ram"), t("pain_fw"), fmt(t("pain_key"), { path: SYS.key_file }), t("pain_gpu"));
+  el.append(h("div", { class: "card warn" }, h("strong", {}, ico("warn", 16), " ", t("pains_title")), h("ul", {}, items.map((x) => h("li", {}, x)))));
+}
+
+// ---------- download com progresso
+function dlBox(id) {
+  const p = DL[id];
+  if (!p) return null;
+  if (p.state === "running") {
+    const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+    return h("span", {}, h("progress", { max: 100, value: pct, "aria-label": t("dl_progress") }), " " + pct + "% ", h("button", { class: "btn sec sm", onclick: () => post("/downloads/cancel", { id }) }, t("cancel")));
+  }
+  if (p.state === "error") return h("span", { class: "hint", style: "color:var(--err)" }, t("error") + ": " + tm(p.message));
+  return null;
+}
+
+// ---------- passo a passo inicial (vida real)
+let setupSig = "";
+function renderSetup() {
+  const el = $("setup");
+  const eng0 = DL.engine;
+  // so refaz o cartao se algo que ele mostra mudou: refazer a cada 2 s tirava o foco de quem usa o teclado
+  const sig = JSON.stringify([LANG, engineState, !!SYS, SYS && SYS.engine_found, SYS && SYS.os, SETTINGS.engine_kind, SETTINGS.model, SETTINGS.model_path,
+    eng0 && [eng0.state, eng0.total ? Math.round((eng0.done / eng0.total) * 100) : 0, eng0.message], lastStatus && [lastStatus.state, lastStatus.message], Object.keys(DL).map((k) => DL[k].state)]);
+  if (sig === setupSig && el.firstChild) return;
+  setupSig = sig;
+  el.innerHTML = "";
+  if (engineState === "ready" || !SYS) return;
+  const native = SETTINGS.engine_kind === "native";
+  const hasEngine = native || SYS.engine_found, hasModel = !!(SETTINGS.model || SETTINGS.model_path);
+  const mark = (ok) => h("span", { class: "mark" }, h("span", { "aria-hidden": "true" }, ok ? "✓" : "○"), h("span", { class: "sr" }, t(ok ? "step_done" : "step_todo") + " "));
+  const eng = DL.engine;
+  const engineBtns = hasEngine ? h("span", { class: "hint" }, t(native ? "engine_native" : "engine_ok")) :
+    (eng && eng.state === "running") ? dlBox("engine") :
+    h("span", {}, h("button", { class: "btn sm", onclick: () => post("/engine/download", { backend: "cpu" }).then(pollDownloads).catch((e) => alert(tm(e.message))) }, t("engine_dl_cpu")), " ",
+      SYS.os === "macos" ? null : h("button", { class: "btn sec sm", onclick: () => post("/engine/download", { backend: "vulkan" }).then(pollDownloads).catch((e) => alert(tm(e.message))) }, t("engine_dl_gpu")),
+      " ", h("button", { class: "btn sec sm", onclick: useNative }, t("engine_native")),
+      eng && eng.state === "error" ? dlBox("engine") : null);
+  el.append(h("div", { class: "card" },
+    h("strong", {}, t("setup_title")),
+    h("div", { class: "step" }, mark(hasEngine), t("step1"), engineBtns),
+    h("div", { class: "step" }, mark(hasModel), t("step2"), h("button", { class: hasModel ? "btn sec sm" : "btn sm", onclick: () => tab("models") }, t("tab_models"))),
+    h("div", { class: "step" }, mark(false), t("step3"),
+      hasEngine && hasModel && engineState === "stopped" ? h("button", { class: "btn sm", onclick: () => post("/engine/start").then(refreshStatus).catch((e) => alert(tm(e.message))) }, t("start")) : null),
+    lastStatus && lastStatus.state === "error" ? h("p", { class: "hint", style: "color:var(--err)" }, tm(lastStatus.message)) : null));
+  const p = h("div", {}); el.append(p); renderPains(p);
+}
+
+// ---------- catálogo
+function recommended() {
+  if (!SYS || !CATALOG.length) return null;
+  const ramGB = SYS.ram_mb / 1024, th = SYS.cpu_threads;
+  const maxSize = th <= 4 ? 1.2e9 : th <= 8 ? 2.2e9 : 1e13;
+  // não recomenda sozinho um modelo de licença não comercial (ele continua no catálogo, com o aviso)
+  const ok = CATALOG.filter((e) => !e.coding && e.min_ram_gb <= ramGB / 2 && e.size <= maxSize && !e.non_commercial);
+  const pool = ok.length ? ok : [CATALOG.find((e) => !e.coding) || CATALOG[0]];
+  return pool.reduce((a, b) => (b.size > a.size ? b : a)).id;
+}
+function fmtMonth(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  try { return new Intl.DateTimeFormat(LANG, { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, 1))); }
+  catch { return String(m).padStart(2, "0") + "/" + y; }
+}
+const chip = (k, v, cls) => h("span", { class: "chip" + (cls ? " " + cls : "") }, k ? h("span", { class: "k" }, k + ":") : null, v);
+// texto por modelo (m_<id>_good/use/avoid); cai para o inglês se a língua não o traduziu
+function modelText(e, part) {
+  const key = "m_" + e.id.replace(/[^a-z0-9]/gi, "_") + "_" + part;
+  const v = (I18N[LANG] && I18N[LANG][key]) || I18N.en[key];
+  return v || null;
+}
+function renderCatalogInfo(e) {
+  const chips = [];
+  if (e.provider) chips.push(chip(t("cat_provider"), e.provider));
+  if (e.released) chips.push(chip(t("cat_released"), fmtMonth(e.released)));
+  if (e.params) chips.push(chip(t("cat_params"), e.params));
+  if (e.ctx_k) chips.push(chip(t("cat_ctx"), e.ctx_k + "K"));
+  if (e.langs) chips.push(chip(t("cat_langs"), e.langs));
+  if (e.license) chips.push(chip(t("cat_license"), e.license));
+  if (e.non_commercial) chips.push(chip("", t("cat_noncom"), "warn"));
+  if (e.thinking) chips.push(chip("", t("cat_think"), "ok"));
+  if (e.native) chips.push(chip("", t("cat_native_chip"), "ok"));
+  const facts = [["good", "cat_good", ""], ["use", "cat_bestfor", ""], ["avoid", "cat_avoid", "avoid"]]
+    .map(([part, lbl, cls]) => { const x = modelText(e, part); return x ? h("div", { class: cls }, h("span", { class: "k" }, t(lbl) + ":"), x) : null; });
+  return [h("div", { class: "chips" }, chips), h("div", { class: "facts" }, facts)];
+}
+function renderCatalog() {
+  const el = $("catalog"); el.innerHTML = "";
+  const rec = recommended();
+  for (const e of CATALOG) {
+    const p = DL[e.id];
+    const action = e.installed ? h("button", { class: "btn sm", onclick: () => useModel(e.file) }, t("cat_use")) :
+      p && p.state === "running" ? dlBox(e.id) :
+      h("span", {}, h("button", { class: "btn sm", onclick: () => post("/catalog/download", { id: e.id }).then(pollDownloads).catch((x) => alert(tm(x.message))) }, t("cat_dl")), p && p.state === "error" ? dlBox(e.id) : null);
+    el.append(h("div", { class: "card" },
+      h("div", { class: "cat-title" }, h("strong", {}, e.name), e.id === rec ? h("span", { class: "badge" }, t("cat_rec")) : null, e.installed ? h("span", { class: "badge", style: "background:var(--muted)" }, t("cat_have")) : null, e.vision ? h("span", { class: "badge" }, t("cat_vision")) : null),
+      h("div", { class: "hint" }, modelText(e, "desc") || e.desc), renderCatalogInfo(e), h("div", { class: "hint", style: "margin-top:8px" }, fmtGB(e.size) + " · " + t("cat_ram") + " " + e.min_ram_gb + " GB"),
+      e.vision && !e.installed ? h("div", { class: "hint" }, t("cat_vision_dl")) : null,
+      SETTINGS.engine_kind === "native" && !e.native ? h("div", { class: "hint", style: "color:var(--err)" }, t("native_unsupported")) : null,
+      h("div", { class: "row" }, action)));
+  }
+  const cur = SETTINGS.model_path || SETTINGS.model;
+  $("curmodel").textContent = cur || "—";
+}
+async function useNative() {
+  try { await api("/settings", { method: "PUT", body: JSON.stringify({ ...SETTINGS, engine_kind: "native" }) }); await loadConfig(); }
+  catch (e) { alert(tm(e.message)); }
+}
+async function useModel(file) {
+  await api("/settings", { method: "PUT", body: JSON.stringify({ ...SETTINGS, model: file, model_path: "" }) });
+  await loadConfig();
+  await post("/engine/start").catch(() => {});
+  tab("chat"); refreshStatus();
+}
+
+// ---------- downloads (polling)
+async function pollDownloads() {
+  try {
+    const list = await (await api("/downloads")).json();
+    const prev = DL; DL = {}; let changed = false;
+    for (const p of list) { DL[p.id] = p; if (p.state === "running" || (prev[p.id] && prev[p.id].state !== p.state)) changed = true; }
+    for (const p of list) if (p.state === "done" && prev[p.id] && prev[p.id].state === "running") { if (p.kind === "engine") await loadSys(); else await loadCatalog(); }
+    if (changed) { renderSetup(); renderCatalog(); }
+  } catch {}
+}
+setInterval(pollDownloads, 1000);
+
+// ---------- escolher arquivo no disco (sem upload: só o caminho é guardado)
+const dlg = $("dlg");
+async function browse(path) {
+  try {
+    const r = await (await api("/fs?path=" + encodeURIComponent(path))).json();
+    $("fspath").textContent = r.path || t("browse_pc");
+    $("fsup").disabled = !r.path; $("fsup").onclick = () => browse(r.parent || "");
+    const list = $("fslist"); list.innerHTML = "";
+    for (const e of r.entries) {
+      list.append(h("button", { type: "button", class: "fsrow", onclick: () => (e.dir ? browse(e.path) : chooseFile(e.path)) },
+        ico(e.dir ? "folder" : "file", 18), h("span", {}, e.name), e.size ? h("span", { class: "sz" }, fmtGB(e.size)) : null));
+    }
+  } catch (e) { $("fslist").textContent = t("error") + ": " + tm(e.message); }
+}
+async function openBrowse() { dlg.showModal(); await browse(""); }
+async function chooseFile(p) {
+  dlg.close();
+  try {
+    await api("/settings", { method: "PUT", body: JSON.stringify({ ...SETTINGS, model_path: p, model: "" }) });
+    await loadConfig(); $("cfgmsg").textContent = t("saved");
+  } catch (e) { $("cfgmsg").textContent = t("error") + ": " + tm(e.message); }
+}
+$("browse1").onclick = openBrowse; $("browse2").onclick = openBrowse; $("fsclose").onclick = () => dlg.close();
+
+// ---------- status do motor
+// modelo em uso no topo do chat; clicar leva à aba Modelos
+function renderModelBar() {
+  const b = $("modelbar"); if (!b) return;
+  const cur = SETTINGS.model_path || SETTINGS.model || "";
+  const file = cur.split(/[\\/]/).pop().toLowerCase();
+  const hit = file && CATALOG.find((e) => (e.file || "").toLowerCase() === file);
+  const name = cur ? (hit ? hit.name : cur.split(/[\\/]/).pop()) : "";
+  const sig = LANG + "|" + cur + "|" + name;
+  if (b.dataset.sig !== sig) {
+    b.dataset.sig = sig;
+    b.classList.toggle("none", !cur);
+    b.title = cur ? t("chat_model_tip") + (cur.includes("/") || cur.includes("\\") ? "\n" + cur : "") : t("chat_model_none");
+    b.setAttribute("aria-label", cur ? fmt(t("chat_model_aria"), { name }) : t("chat_model_none"));
+    b.replaceChildren(ico("chip", 16), h("span", { class: "mn" }, cur ? name : t("chat_model_none")));
+  }
+  b.onclick = () => tab("models");
+  renderLangHint(hit);
+}
+// aviso: o modelo rende melhor em ingles (independe do idioma da interface; so o catalogo decide). Dispensavel por modelo na sessao.
+function renderLangHint(hit) {
+  const box = $("langhint"); if (!box) return;
+  let gone = false; const key = "buriti-enhint-" + (hit ? hit.id : "");
+  try { gone = !!(hit && sessionStorage.getItem(key)); } catch {}
+  const show = !!(hit && hit.english_best && !gone);
+  const sig = (show ? "1" : "0") + "|" + LANG;
+  if (box.dataset.sig === sig) return;
+  const was = box.dataset.sig ? box.dataset.sig.split("|")[0] === "1" : false;
+  box.dataset.sig = sig;
+  box.hidden = !show;
+  if (!show) return;
+  $("langhint-t").textContent = t("chat_en_hint");
+  const x = $("langhint-x"); x.replaceChildren(ico("x", 14)); x.setAttribute("aria-label", t("chat_en_dismiss")); x.title = t("chat_en_dismiss");
+  x.onclick = () => { try { sessionStorage.setItem(key, "1"); } catch {} box.hidden = true; box.dataset.sig = "0|" + LANG; $("modelbar").focus(); };
+  if (!was) announce(t("chat_en_hint"));
+}
+let BUSY = false;
+function setSend() { const off = BUSY || engineState !== "ready"; $("send").setAttribute("aria-disabled", off ? "true" : "false"); }
+function renderStatus() {
+  renderModelBar();
+  let txt, tip = "", cls = "warn";
+  if (!lastStatus) txt = t("st_noconn");
+  else {
+    const st = lastStatus.state;
+    const key = { stopped: "st_stopped", starting: "st_starting", ready: "st_ready", error: "st_error" }[st];
+    txt = t(key);
+    const msg = lastStatus.message ? tm(lastStatus.message) : "";
+    if (st === "ready") { cls = "ok"; tip = msg || t("st_tip_ready"); }
+    else if (st === "error") { cls = "bad"; tip = msg; }
+    else tip = t(st === "starting" ? "st_tip_starting" : "st_tip_stopped");
+  }
+  const pill = $("pill"), sig = cls + "|" + txt + "|" + tip;
+  if (pill.dataset.sig === sig) return;
+  pill.dataset.sig = sig;
+  pill.className = cls;
+  pill.textContent = txt;
+  $("pill-tip").textContent = tip;
+  $("pillbox").classList.toggle("notip", !tip);
+  // com detalhe, o selo entra na ordem do teclado e aponta para o tooltip; sem detalhe, não vira uma parada vazia
+  if (tip) { pill.setAttribute("tabindex", "0"); pill.setAttribute("aria-describedby", "pill-tip"); }
+  else { pill.removeAttribute("tabindex"); pill.removeAttribute("aria-describedby"); }
+}
+async function refreshStatus() {
+  try {
+    lastStatus = await (await api("/engine/status")).json(); engineState = lastStatus.state; setSend();
+    const v = engineState === "ready" ? await (await api("/vision")).json().catch(() => null) : null;
+    if (JSON.stringify(v) !== JSON.stringify(VISION)) { VISION = v; if (!BUSY) renderAttach(); }
+  }
+  catch { lastStatus = null; }
+  renderStatus(); renderSetup();
+}
+setInterval(refreshStatus, 2000);
+
+// ---------- configurações
+function renderSys() {
+  if (!SYS) return;
+  const s = SYS;
+  const gpus = s.gpus.length ? s.gpus.map((g) => `${g.name}${g.vram_mb ? " (" + g.vram_mb + " MB)" : ""} — ${g.hint}`).join("; ") : t("sys_none");
+  $("sys").textContent = `${s.os}/${s.arch} · ${s.cpu_threads} threads · ${(s.ram_mb / 1024).toFixed(1)} GB RAM · GPU: ${gpus} · ${s.engine_name}: ` +
+    (s.engine_found ? t("sys_engine_ok") : `${t("sys_engine_missing")} ${s.engine_path}`);
+}
+// dispositivo de GPU do motor próprio (D69): só aparece com o motor próprio e se há uma GPU de verdade (não um renderizador por software)
+function fillGpuDevices() {
+  const sel = $("gpudev"); if (!sel) return;
+  const want = SETTINGS.gpu_device || "best";
+  const names = [...new Set(((SYS && SYS.gpu_adapters) || []).filter((a) => !a.software).map((a) => a.name))];
+  const sig = LANG + "|" + names.join("|") + "#" + want;
+  if (sel.dataset.sig === sig) return;
+  sel.dataset.sig = sig;
+  sel.replaceChildren(new Option(t("gpudev_best"), "best"), ...names.map((n) => new Option(n, n)));
+  if (want !== "best" && !names.includes(want)) sel.add(new Option(want, want));
+  sel.value = want;
+}
+function updateProcBox() {
+  const box = $("procbox"); if (!box) return;
+  const hasGpu = !!(SYS && (SYS.gpu_adapters || []).some((a) => !a.software));
+  const native = $("enginekind").value === "native";
+  box.hidden = !native || !hasGpu;
+  $("gpudevbox").hidden = $("processor").value === "cpu";
+  $("gpulayersbox").hidden = native; // as "camadas na GPU" são do llama.cpp: o motor próprio usa o seletor de processador acima
+}
+async function loadSys() { SYS = await (await api("/system")).json(); fillGpuDevices(); updateProcBox(); renderSys(); renderSetup(); renderPains($("pains-models")); renderPains($("pains-help")); }
+async function loadCatalog() { CATALOG = (await (await api("/catalog")).json()).entries; renderCatalog(); }
+async function loadConfig() {
+  const [s, m] = await Promise.all([api("/settings").then((r) => r.json()), api("/models").then((r) => r.json())]);
+  SETTINGS = s; MODELS = m.models;
+  $("model").innerHTML = ""; $("model").add(new Option(t("model_select"), ""));
+  for (const x of m.models) $("model").add(new Option(`${x.name} (${fmtGB(x.size)})`, x.name));
+  $("model").value = s.model; $("modeldir").textContent = m.dir; $("modelpath").value = s.model_path || "";
+  $("gpu").value = s.gpu_layers; $("gpuv").textContent = s.gpu_layers;
+  $("threads").value = s.threads; $("ctx").value = s.ctx_size; $("port").value = s.engine_port; $("enginekind").value = s.engine_kind;
+  $("processor").value = s.processor || "auto"; fillGpuDevices(); updateProcBox();
+  renderCatalog(); renderSetup(); updateMeter();
+}
+$("enginekind").addEventListener("change", updateProcBox);
+$("processor").addEventListener("change", updateProcBox);
+$("gpu").oninput = () => ($("gpuv").textContent = $("gpu").value);
+const readForm = () => ({ model: $("model").value, model_path: $("modelpath").value.trim(), gpu_layers: +$("gpu").value, threads: +$("threads").value, ctx_size: +$("ctx").value, engine_port: +$("port").value, engine_kind: $("enginekind").value, processor: $("processor").value, gpu_device: $("gpudev").value || "best" });
+async function act(fn) { try { $("cfgmsg").textContent = await fn(); } catch (e) { $("cfgmsg").textContent = t("error") + ": " + tm(e.message); } await loadConfig().catch(() => {}); refreshStatus(); }
+$("save").onclick = () => act(async () => {
+  const r = await (await api("/settings", { method: "PUT", body: JSON.stringify(readForm()) })).json();
+  return r.message ? t("saved") + " " + tm(r.message) : r.restarted ? t("saved_restart") : t("saved");
+});
+$("start").onclick = () => act(async () => { await post("/engine/start"); return t("starting_msg"); });
+$("stop").onclick = () => act(async () => { await post("/engine/stop"); return t("stopped_msg"); });
+
+// ---------- histórico (lista lateral; arquivos criptografados no servidor)
+function renderChats() {
+  const list = $("chatlist"); list.innerHTML = "";
+  if (!CHATS.length) { list.append(h("p", { class: "hint" }, t("hist_empty"))); return; }
+  for (const c of CHATS) {
+    list.append(h("div", { class: "item" + (c.id === CUR ? " on" : ""), onclick: () => openChat(c.id) },
+      h("button", Object.assign({ type: "button", class: "open" }, c.id === CUR ? { "aria-current": "true" } : {}), c.title || "…"),
+      h("button", { type: "button", title: t("hist_del"), "aria-label": t("hist_del") + ": " + (c.title || "…"), onclick: (ev) => { ev.stopPropagation(); delChat(c.id); } }, h("span", { "aria-hidden": "true" }, "✕"))));
+  }
+}
+async function loadChats() { try { CHATS = await (await api("/chats")).json(); } catch { CHATS = []; } renderChats(); }
+// preencher o historico de uma vez nao deve ser lido mensagem por mensagem
+function quiet(fn) { const l = $("log"); l.setAttribute("aria-live", "off"); try { fn(); } finally { setTimeout(() => l.setAttribute("aria-live", "polite"), 100); } }
+function renderLog() { quiet(() => { $("log").innerHTML = ""; for (const m of history) addMsg(m.role, m.content, "", m); }); }
+async function openChat(id) {
+  try { const c = await (await api("/chats/" + id)).json(); CUR = id; history.length = 0; history.push(...c.messages); renderLog(); renderChats(); tab("chat"); }
+  catch (e) { alert(tm(e.message)); }
+}
+async function delChat(id) {
+  if (!confirm(t("hist_del") + "?")) return;
+  await api("/chats/" + id, { method: "DELETE" }).catch(() => {});
+  if (id === CUR) newChat(); await loadChats();
+}
+function newChat() { CUR = null; history.length = 0; clearPending(); renderLog(); renderChats(); }
+$("newchat").onclick = newChat;
+async function saveChat() {
+  if (!history.length) return;
+  try {
+    if (!CUR) CUR = (await (await post("/chats")).json()).id;
+    const u = history.find((m) => m.role === "user") || { content: "" };
+    const title = (u.content || (u.attachments && u.attachments[0] && u.attachments[0].name) || "").slice(0, 60);
+    // NUNCA grava o conteúdo dos arquivos (_files fica só na memória): só nome, tamanho e tipo
+    const messages = history.map((m) => (m.attachments && m.attachments.length ? { role: m.role, content: m.content, attachments: m.attachments } : { role: m.role, content: m.content }));
+    await api("/chats/" + CUR, { method: "PUT", body: JSON.stringify({ title, messages }) });
+    await loadChats();
+  } catch (e) { console.warn(e); }
+}
+
+// ---------- anexos (texto, código e PDF). Os arquivos são lidos AQUI, no navegador, ou (PDF) pelo servidor local;
+// nada vai para fora do computador e o conteúdo nunca entra no histórico salvo (só nome, tamanho e tipo).
+const ATT_MAX = 5 * 1024 * 1024, ATT_MAX_N = 10, ATT_WARN = 0.8;
+const CODE_EXT = new Set("js mjs cjs jsx ts tsx py rs go java kt kts c h cc cpp cxx hpp hh cs php rb sh bash zsh bat cmd ps1 psm1 sql swift lua r pl scala dart vue svelte html htm css scss sass less xml svg json jsonc jsonl yaml yml toml ini cfg conf properties gradle cmake mk dockerfile tf proto graphql ex exs erl hs clj groovy vb asm".split(" "));
+const TEXT_EXT = new Set("txt md markdown rst tex csv tsv log env gitignore gitattributes editorconfig srt vtt".split(" "));
+const IMG_EXT = new Set("png jpg jpeg gif webp bmp avif".split(" "));
+const TEXT_NAMES = new Set(["dockerfile", "makefile", "license", "readme", "changelog", "authors", "notice"]);
+let PENDING = [], attSeq = 0, WARNED = false;
+const estTokens = (s) => Math.ceil(s.length / 3.5);
+const ctxMax = () => +SETTINGS.ctx_size || 2048;
+const msgLimit = () => ctxMax() - Math.floor(ctxMax() / 10); // 90%: igual ao servidor (attach::message_limit); o resto fica para a resposta
+const fmtSize = (b) => (b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(b < 10240 ? 1 : 0) + " KB" : (b / 1048576).toFixed(1) + " MB");
+function attKind(f) {
+  const n = (f.name || "").toLowerCase(), dot = n.lastIndexOf("."), ext = dot >= 0 ? n.slice(dot + 1) : "";
+  if (ext === "pdf" || f.type === "application/pdf") return "pdf";
+  if (IMG_EXT.has(ext)) return "image";
+  if (CODE_EXT.has(ext)) return "code";
+  if (TEXT_EXT.has(ext) || TEXT_NAMES.has(n)) return "text";
+  if (f.type.startsWith("image/") && f.type !== "image/svg+xml") return "image";
+  if (f.type.startsWith("text/") || /\/(json|xml|x-yaml|toml)$/.test(f.type)) return "text";
+  return null;
+}
+// texto UTF-8 estrito: byte NUL ou sequência inválida = binário (rejeitado)
+async function readTextFile(f) {
+  const u8 = new Uint8Array(await f.arrayBuffer());
+  if (u8.indexOf(0) >= 0) throw new Error("binary");
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(u8); } catch { throw new Error("binary"); }
+}
+function longestTicks(s) { let m = 0, c = 0; for (let i = 0; i < s.length; i++) { if (s.charCodeAt(i) === 96) { c++; if (c > m) m = c; } else c = 0; } return m; }
+// Bloco de um arquivo na mensagem enviada ao motor. O conteúdo é TEXTO NÃO CONFIÁVEL (dado, não instrução):
+// por isso vai cercado e com o nome visível; a cerca é maior que qualquer sequência de crases do conteúdo.
+function blockFor(a) {
+  if (a.kind === "image" || a.text == null) return ""; // PONTO DE EXTENSÃO (visão): imagens entrarão aqui como parte de imagem da mensagem
+  const fence = "`".repeat(Math.max(3, longestTicks(a.text) + 1));
+  return "### Arquivo: " + a.name + "\n" + fence + "\n" + a.text + "\n" + fence;
+}
+function composeContent(m) { return [m.content, ...(m._files || []).map(blockFor)].filter(Boolean).join("\n\n"); }
+// tokens estimados da MENSAGEM ATUAL (texto + blocos dos anexos). As mensagens antigas não entram: os motores
+// descartam as mais velhas quando a conversa passa do contexto; só a última não pode ser cortada.
+function ctxTotal(extra) {
+  let n = 0;
+  if (extra) n += estTokens(composeContent(extra)) + (extra._files || []).reduce((s, x) => s + (x.img ? x.img.tokens : 0), 0);
+  else n += PENDING.reduce((s, a) => s + (a.status === "ready" ? estTokens(blockFor(a)) + (a.img ? a.img.tokens : 0) : 0), 0) + estTokens($("input").value);
+  return n;
+}
+function setNote(msg) { $("attach-note").textContent = msg || ""; }
+function reject(msg) { setNote(msg); announce(msg); }
+function updateMeter() {
+  const has = PENDING.length > 0, used = ctxTotal(), max = msgLimit(), pct = Math.round((used / max) * 100);
+  $("attach-meter").hidden = !has;
+  $("attach-meter-t").textContent = fmt(t("att_meter"), { used, max, pct });
+  $("attach-prog").value = Math.min(100, pct);
+  const warn = has && used > max * ATT_WARN;
+  $("attach-warn").hidden = !warn;
+  if (warn) {
+    const txt = fmt(t("att_warn"), { used, max, pct });
+    $("attach-warn-t").textContent = txt;
+    $("attach-trunc").hidden = !PENDING.some((a) => a.status === "ready" && a.text);
+    if (!WARNED) announce(txt);
+  }
+  WARNED = warn;
+}
+function truncateToFit() {
+  const ready = PENDING.filter((a) => a.status === "ready" && a.text), max = ctxMax();
+  const mine = ready.reduce((s, a) => s + estTokens(blockFor(a)), 0);
+  const avail = Math.floor(msgLimit() * ATT_WARN) - (ctxTotal() - mine);
+  if (!ready.length || avail < 40 * ready.length) { reject(t("att_trunc_fail")); return; }
+  const ratio = Math.min(1, (avail / mine) * 0.95);
+  for (const a of ready) { a.text = a.text.slice(0, Math.max(0, Math.floor(a.text.length * ratio))) + "\n[… conteúdo truncado …]"; a.truncated = true; }
+  setNote(""); announce(t("att_truncated_ann")); renderAttach();
+}
+$("attach-trunc").onclick = truncateToFit;
+function chipEl(a, opts) {
+  const icon = a.thumb ? h("img", { class: "thumb", src: a.thumb, alt: a.kind === "image" ? fmt(t("att_img_alt"), { name: a.name }) : "" }) : h("span", { class: "ico", "aria-hidden": "true" }, ico({ pdf: "file", code: "code", text: "file", image: "image" }[a.kind] || "file", 22));
+  const bits = [t("att_kind_" + a.kind), fmtSize(a.size)];
+  if (opts.gone) bits.push(t("att_gone"));
+  else if (a.kind === "image") { if (a.status === "unsupported") bits.push(t("att_img_novision")); else if (a.status === "reading") bits.push(t("att_img_prep")); else if (a.img) bits.push(fmt(t("att_tokens"), { n: a.img.tokens })); }
+  else if (a.status === "reading") bits.push(fmt(t("att_reading"), { name: a.name }));
+  else if (a.text != null) { bits.push(fmt(t("att_tokens"), { n: estTokens(a.text) })); if (a.truncated) bits.push(t("att_truncated")); }
+  const rm = fmt(t("att_remove"), { name: a.name });
+  const li = h("li", { class: "att" + (opts.gone ? " gone" : "") + (a.kind === "image" && a.status === "unsupported" && !opts.gone ? " unsupported" : ""), "data-attid": a.id || "" },
+    icon, h("span", { class: "txt" }, h("span", { class: "nm", title: a.name }, a.name), h("span", { class: "meta" }, bits.join(" · "))),
+    opts.remove ? h("button", { type: "button", class: "rm", "aria-label": rm, title: rm, onclick: () => removeAtt(a.id) }, h("span", { "aria-hidden": "true" }, "✕")) : null);
+  if (a.status === "reading") li.setAttribute("aria-busy", "true");
+  return li;
+}
+// chips dentro da mensagem enviada; sem _files = conversa reaberta: o conteúdo não foi guardado
+function msgAtts(m) {
+  return h("ul", { class: "atts", "aria-label": t("att_list") }, m.attachments.map((x) => chipEl({ name: x.name, size: x.size, kind: x.kind, text: null, status: "ready" }, { gone: !m._files, remove: false })));
+}
+function renderAttach() {
+  $("attach-list").replaceChildren(...PENDING.map((a) => chipEl(a, { remove: true })));
+  const hasImg = PENDING.some((a) => a.img); $("img-hint").hidden = !hasImg; $("img-hint").textContent = hasImg ? t("att_img_hist") : "";
+  updateMeter();
+}
+function clearPending() { for (const a of PENDING) if (a.thumb) URL.revokeObjectURL(a.thumb); PENDING = []; setNote(""); renderAttach(); }
+function removeAtt(id) {
+  const i = PENDING.findIndex((a) => a.id === id); if (i < 0) return;
+  const a = PENDING[i]; if (a.thumb) URL.revokeObjectURL(a.thumb);
+  PENDING.splice(i, 1); setNote(""); renderAttach(); announce(fmt(t("att_removed"), { name: a.name }));
+  const btns = $("attach-list").querySelectorAll("button.rm");
+  (btns[Math.min(i, btns.length - 1)] || $("attach-btn")).focus();
+}
+// ---------- imagens (visão): decodifica e reduz AQUI (canvas); o servidor só recebe blocos RGB 512x512 em base64, na mesma
+// ordem de src/image.rs: fatias linha a linha e, por último, a visão geral. Nada é guardado no histórico.
+function u8ToB64(u8) { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+async function prepareImage(f) {
+  const T = VISION.tile, G = VISION.max_grid;
+  const bmp = await createImageBitmap(f);
+  try {
+    const w = bmp.width, hh = bmp.height;
+    if (!w || !hh || w * hh > 100e6) throw new Error("size");
+    // grade de fatias: só se a imagem passa de um bloco (como o llama.cpp: ceil(lado/512), no máximo G por lado)
+    const gx = Math.max(w, hh) > T ? Math.min(G, Math.ceil(w / T)) : 0, gy = Math.max(w, hh) > T ? Math.min(G, Math.ceil(hh / T)) : 0;
+    const mk = (cw, ch) => { const c = document.createElement("canvas"); c.width = cw; c.height = ch; const x = c.getContext("2d", { willReadFrequently: true }); x.fillStyle = "#fff"; x.fillRect(0, 0, cw, ch); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high"; return [c, x]; };
+    const rgb = (x) => { const d = x.getImageData(0, 0, T, T).data, o = new Uint8Array(T * T * 3); for (let i = 0, j = 0; i < d.length; i += 4) { o[j++] = d[i]; o[j++] = d[i + 1]; o[j++] = d[i + 2]; } return u8ToB64(o); };
+    const tiles = [];
+    if (gx) {
+      const [rc, rx] = mk(gx * T, gy * T); rx.drawImage(bmp, 0, 0, w, hh, 0, 0, gx * T, gy * T);
+      for (let y = 0; y < gy; y++) for (let x = 0; x < gx; x++) { const [, tx] = mk(T, T); tx.drawImage(rc, x * T, y * T, T, T, 0, 0, T, T); tiles.push(rgb(tx)); }
+    }
+    const [, ox] = mk(T, T); ox.drawImage(bmp, 0, 0, w, hh, 0, 0, T, T); tiles.push(rgb(ox));
+    return { grid: [gx, gy], tiles, tokens: tiles.length * VISION.per_tile + 8 };
+  } finally { bmp.close(); }
+}
+async function addImage(a, f) {
+  const name = a.name;
+  try { a.thumb = URL.createObjectURL(f); } catch {}
+  if (!VISION) { a.status = "unsupported"; PENDING.push(a); renderAttach(); announce(fmt(t("att_added"), { name }) + " " + t("att_img_novision")); return; }
+  if (PENDING.some((x) => x.kind === "image")) { if (a.thumb) URL.revokeObjectURL(a.thumb); return reject(t("att_img_one")); }
+  PENDING.push(a); renderAttach(); announce(t("att_img_prep"));
+  try {
+    a.img = await prepareImage(f);
+    if (!PENDING.includes(a)) return; // removida enquanto preparava
+    a.status = "ready"; setNote(""); renderAttach(); announce(fmt(t("att_added"), { name }));
+  } catch {
+    const i = PENDING.indexOf(a); if (i >= 0) PENDING.splice(i, 1);
+    if (a.thumb) URL.revokeObjectURL(a.thumb);
+    renderAttach(); reject(fmt(t("att_img_fail"), { name }));
+  }
+}
+async function addOne(f) {
+  const name = f.name || "file", kind = attKind(f);
+  if (!f.size) return reject(fmt(t("att_rej_empty"), { name }));
+  if (f.size > ATT_MAX) return reject(fmt(t("att_rej_big"), { name, max: ATT_MAX / 1048576 }));
+  if (!kind) return reject(fmt(t("att_rej_type"), { name }));
+  const a = { id: "a" + ++attSeq, name, size: f.size, kind, status: "reading", text: null };
+  if (kind === "image") return addImage(a, f);
+  PENDING.push(a); renderAttach();
+  try {
+    if (kind === "pdf") {
+      const r = await (await api("/attach/pdf", { method: "POST", headers: { "Content-Type": "application/pdf" }, body: f })).json();
+      a.text = r.text; a.truncated = !!r.truncated;
+    } else a.text = await readTextFile(f);
+    if (!PENDING.includes(a)) return; // removido enquanto lia
+    a.status = "ready"; setNote(""); renderAttach(); announce(fmt(t("att_added"), { name }));
+  } catch (e) {
+    const i = PENDING.indexOf(a); if (i >= 0) PENDING.splice(i, 1);
+    renderAttach();
+    reject(kind === "pdf" ? fmt(t("att_rej_pdf"), { name, reason: tm(e.message) }) : fmt(t("att_rej_binary"), { name }));
+  }
+}
+async function addFiles(list) {
+  setNote("");
+  for (const f of [...list]) {
+    if (PENDING.length >= ATT_MAX_N) { reject(fmt(t("att_too_many"), { n: ATT_MAX_N })); break; }
+    await addOne(f);
+  }
+}
+$("file-input").setAttribute("accept", [...CODE_EXT, ...TEXT_EXT, ...IMG_EXT, "pdf"].map((x) => "." + x).join(","));
+$("attach-btn").onclick = () => $("file-input").click();
+$("img-btn").onclick = () => $("img-input").click();
+$("img-input").onchange = async (e) => { const l = [...e.target.files]; e.target.value = ""; await addFiles(l); $("img-btn").focus(); };
+$("file-input").onchange = async (e) => { const l = [...e.target.files]; e.target.value = ""; await addFiles(l); $("attach-btn").focus(); };
+// arrastar e soltar (a janela toda; fora do Chat só impede o navegador de abrir o arquivo)
+const chatOn = () => $("s-chat").classList.contains("on");
+const hasFiles = (e) => e.dataTransfer && [...(e.dataTransfer.types || [])].includes("Files");
+let dragN = 0;
+function showDrop(on) { const was = !$("dropov").hidden; $("dropov").hidden = !on; if (on && !was) announce(t("att_drop_ann")); }
+window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN++; if (chatOn()) showDrop(true); });
+window.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = chatOn() ? "copy" : "none"; });
+window.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; dragN = e.relatedTarget ? Math.max(0, dragN - 1) : 0; if (!dragN) showDrop(false); });
+window.addEventListener("drop", (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragN = 0; showDrop(false); if (chatOn()) addFiles(e.dataTransfer.files); });
+// colar arquivos (Ctrl+V): só quando não há texto na área de transferência (copiar células do Excel traz texto + imagem)
+document.addEventListener("paste", (e) => {
+  if (!chatOn()) return;
+  const tg = e.target; if (tg && tg !== $("input") && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
+  const cd = e.clipboardData; if (!cd || !cd.files || !cd.files.length) return;
+  if ([...(cd.types || [])].includes("text/plain") && cd.getData("text/plain")) return;
+  e.preventDefault(); addFiles(cd.files);
+});
+
+// ---------- chat
+function addMsg(role, text, cls = "", m = null) {
+  const who = h("span", { class: "sr", "data-role": role }, t(role === "user" ? "chat_you" : "chat_assistant") + ": ");
+  const body = h("span", { class: "body" }, text);
+  const d = h("div", { class: "msg " + role + " " + cls }, who, body, m && m.attachments && m.attachments.length ? msgAtts(m) : null);
+  d.body = body;
+  $("log").append(d); scrollChatToEnd(); return d;
+}
+// rola só a área de mensagens (scrollIntoView rolaria também main e a página)
+function scrollChatToEnd() { const s = $("scroll"); s.scrollTop = s.scrollHeight; }
+const setBody = (m, s) => { (m.body || m).textContent = s; };
+$("chat-form").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const text = $("input").value.trim();
+  if (BUSY) return;
+  if (PENDING.some((a) => a.status === "reading")) { announce(t("att_busy")); return; }
+  const files = PENDING.filter((a) => a.status === "ready");
+  const nImg = PENDING.filter((a) => a.kind === "image").length, nSkip = PENDING.filter((a) => a.status === "unsupported").length;
+  if (!text && !files.length) { if (nImg) setNote(t("att_img_nosent")); return; }
+  if (engineState !== "ready") { announce(t("send_disabled")); return; }
+  const entry = { role: "user", content: text };
+  if (files.length) {
+    entry.attachments = files.map((a) => ({ name: a.name, size: a.size, kind: a.kind }));
+    entry._files = files.map((a) => ({ name: a.name, kind: a.kind, text: a.text, img: a.img })); // só na memória desta sessão (a imagem nunca vai para o histórico salvo)
+  }
+  // limite duro: acima do contexto não envia (o servidor também recusa); aos 80% só avisa (updateMeter)
+  const total = ctxTotal(entry), max = msgLimit();
+  if (total > max) { setNote(fmt(t("att_over_send"), { used: total, max })); announce(fmt(t("att_over_send"), { used: total, max })); updateMeter(); return; }
+  $("input").value = "";
+  clearPending(); setNote(nSkip ? t("att_img_nosent") : "");
+  history.push(entry);
+  quiet(() => addMsg("user", text, "", entry));
+  BUSY = true; setSend(); announce(t("chat_thinking"));
+  $("log").setAttribute("aria-busy", "true");
+  const out = addMsg("assistant", ".");
+  // "pensando": . .. ... . .. ... enquanto a resposta não começa
+  let nDots = 1;
+  const dotsTimer = setInterval(() => { nDots = nDots % 3 + 1; setBody(out, ".".repeat(nDots)); }, 400);
+  let acc = "";
+  try {
+    // só a imagem mais recente vai ao motor (1 por pedido); as anteriores ficam só como texto
+    let imgAt = -1; history.forEach((m, i) => { if ((m._files || []).some((x) => x.img)) imgAt = i; });
+    const r = await post("/chat", { messages: history.map((m, i) => { const o = { role: m.role, content: composeContent(m) }; if (i === imgAt) { const g = m._files.find((x) => x.img).img; o.images = [{ grid: g.grid, tiles: g.tiles }]; } return o; }) });
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data);
+          // mensagem do servidor dentro do fluxo (D83): vem com {code, args, en} e é traduzida para o idioma do usuário
+          if (j.buriti_error) acc += (acc ? "\n" : "") + "[" + tm(JSON.stringify(j.buriti_error)) + "]";
+          else acc += j.choices?.[0]?.delta?.content || "";
+          if (acc) { clearInterval(dotsTimer); setBody(out, acc); scrollChatToEnd(); }
+        } catch {}
+      }
+    }
+    history.push({ role: "assistant", content: acc });
+  } catch (e) {
+    setBody(out, t("error") + ": " + tm(e.message)); out.classList.add("err"); history.pop();
+    // devolve o texto e os arquivos de texto ao campo, para o usuário não perder o que já anexou
+    if (!$("input").value) $("input").value = text;
+    for (const a of files) PENDING.push(a);
+    renderAttach();
+  }
+  clearInterval(dotsTimer);
+  if (!acc && !out.classList.contains("err")) setBody(out, "…"); // resposta vazia
+  BUSY = false; setSend(); $("log").removeAttribute("aria-busy");
+  await saveChat();
+  refreshStatus();
+};
+$("input").addEventListener("input", updateMeter);
+$("input").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("chat-form").requestSubmit(); } };
+
+// ---------- API / Buriti Code
+let APIKEY = null, APIKEY_SHOW = false;
+const apiBase = () => "http://127.0.0.1:" + location.port + "/v1";
+async function copyText(txt, btn) {
+  try { await navigator.clipboard.writeText(txt); }
+  catch { const ta = h("textarea", { style: "position:fixed;opacity:0" }); ta.value = txt; document.body.append(ta); ta.select(); try { document.execCommand("copy"); } catch {} ta.remove(); }
+  if (btn) { btn.textContent = t("api_copied"); announce(t("api_copied")); setTimeout(() => renderApi(), 1200); }
+}
+function apiTexts(key) {
+  const base = apiBase(), L = [
+    ["curl " + base + "/chat/completions \\", '  -H "Authorization: Bearer ' + key + '" \\', '  -H "Content-Type: application/json" \\',
+     "  -d '" + JSON.stringify({ model: "buriti", messages: [{ role: "user", content: "Write a Python function that reverses a string." }], stream: false, temperature: 0.2, max_tokens: 200 }) + "'"],
+    ["curl " + base + "/completions \\", '  -H "Authorization: Bearer ' + key + '" \\', '  -H "Content-Type: application/json" \\',
+     "  -d '" + JSON.stringify({ model: "buriti", prompt: "def add(a, b):\n    ", suffix: "\n\nprint(add(1, 2))", max_tokens: 64, temperature: 0, stream: false }) + "'"],
+  ];
+  const yaml = ["name: Buriti local", "version: 1.0.0", "schema: v1", "models:",
+    "  - name: Buriti chat", "    provider: openai", "    model: buriti   # or an id returned by GET /v1/models", "    apiBase: " + base, "    apiKey: " + key, "    roles:", "      - chat", "      - edit", "      - apply",
+    "  - name: Buriti autocomplete", "    provider: openai", "    model: buriti", "    apiBase: " + base, "    apiKey: " + key, "    roles:", "      - autocomplete", ""].join("\n");
+  return { chat: L[0].join("\n"), fim: L[1].join("\n"), yaml };
+}
+function renderApi() {
+  if (!$("api-base")) return;
+  const base = apiBase();
+  $("api-what").textContent = fmt(t("api_what"), { url: base });
+  $("api-base").textContent = base;
+  $("api-copy-base").textContent = t("api_copy"); $("api-copy-base").setAttribute("aria-label", t("api_copy") + ": " + t("api_base")); $("api-copy-base").onclick = (ev) => copyText(base, ev.target);
+  $("api-key").textContent = APIKEY ? (APIKEY_SHOW ? APIKEY : "\u2022".repeat(24)) : "…";
+  $("api-toggle").textContent = APIKEY_SHOW ? t("api_hide") : t("api_show"); $("api-toggle").setAttribute("aria-pressed", APIKEY_SHOW ? "true" : "false");
+  $("api-toggle").onclick = () => { APIKEY_SHOW = !APIKEY_SHOW; renderApi(); };
+  $("api-copy-key").textContent = t("api_copy"); $("api-copy-key").setAttribute("aria-label", t("api_copy") + ": " + t("api_key")); $("api-copy-key").onclick = (ev) => APIKEY && copyText(APIKEY, ev.target);
+  $("api-regen").textContent = t("api_regen"); $("api-regen").onclick = regenApiKey;
+  const tx = apiTexts(APIKEY && APIKEY_SHOW ? APIKEY : "<API_KEY>");
+  $("api-curl-chat").textContent = tx.chat; $("api-curl-fim").textContent = tx.fim; $("api-cont-yaml").textContent = tx.yaml;
+}
+async function loadApiKey() {
+  try { APIKEY = (await (await api("/apikey")).json()).key; $("api-key-err").textContent = ""; }
+  catch (e) { $("api-key-err").textContent = t("api_key_err") + " " + tm(e.message); }
+  renderApi();
+}
+async function regenApiKey() {
+  if (!confirm(t("api_regen_confirm"))) return;
+  try { APIKEY = (await (await post("/apikey")).json()).key; $("api-key-err").textContent = ""; }
+  catch (e) { $("api-key-err").textContent = t("api_key_err") + " " + tm(e.message); }
+  renderApi();
+}
+$("t-api").addEventListener("click", () => { if (!APIKEY) loadApiKey(); });
+
+// ---------- idioma: reaplica tudo
+// texto traduzido; trechos entre ** ** viram <strong> (montados por DOM, nunca por innerHTML)
+function setI18n(e, s) {
+  if (!s.includes("**")) { e.textContent = s; return; }
+  e.replaceChildren(...s.split("**").map((p, i) => { if (i % 2 === 0) return document.createTextNode(p); const b = document.createElement("strong"); b.textContent = p; return b; }));
+}
+function applyLang() {
+  document.documentElement.lang = LANG === "pt" ? "pt-BR" : LANG;
+  document.documentElement.dir = RTL.includes(LANG) ? "rtl" : "ltr";
+  $("lang").value = LANG;
+  applyTheme();
+  document.querySelectorAll("[data-i18n]").forEach((e) => setI18n(e, t(e.dataset.i18n)));
+  document.querySelectorAll("[data-i18n-ph]").forEach((e) => (e.placeholder = t(e.dataset.i18nPh)));
+  $("input").placeholder = t("chat_ph") + " " + t("att_ph_hint");
+  $("attach-btn").title = t("att_btn"); $("attach-btn").setAttribute("aria-label", t("att_btn"));
+  $("img-btn").title = t("img_btn"); $("img-btn").setAttribute("aria-label", t("img_btn"));
+  renderAttach(); if (!BUSY && history.length) renderLog();
+  document.querySelectorAll("[data-i18n-aria]").forEach((e) => e.setAttribute("aria-label", t(e.dataset.i18nAria)));
+  document.querySelectorAll(".msg .sr[data-role]").forEach((e) => (e.textContent = t(e.dataset.role === "user" ? "chat_you" : "chat_assistant") + ": "));
+  document.title = "Buriti — " + $("t-" + (["chat", "models", "cfg", "api", "help"].find((n) => $("s-" + n).classList.contains("on")) || "chat")).textContent;
+  const first = $("model").options[0]; if (first && first.value === "") first.textContent = t("model_select");
+  fillGpuDevices();
+  renderStatus(); renderSys(); renderSetup(); renderCatalog(); renderChats(); renderApi();
+  renderPains($("pains-models")); renderPains($("pains-help"));
+  if (!history.length) $("log").innerHTML = "";
+}
+
+applyLang(); tab("chat");
+(async () => {
+  await Promise.all([loadSys(), loadConfig(), loadCatalog(), loadChats()]).catch((e) => ($("sys").textContent = t("error") + ": " + tm(e.message)));
+  await refreshStatus(); applyLang();
+})();
+</script>
+</body>
+</html>
